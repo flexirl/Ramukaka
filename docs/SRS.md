@@ -5,9 +5,9 @@
 | Based on | Ramu Kaka PRD v1.0 (PDF), [PRD.md](./PRD.md) |
 | Standard | Loosely follows the IEEE 830 structure |
 | Status | **DRAFT – awaiting approval** |
-| Last updated | 2026-10-30 (audit corrections) |
+| Last updated | 2026-10-30 (single mobile app decision) |
 
-Labels: **CONFIRMED** (from the PDF), **DERIVED**, **PENDING APPROVAL** (`PA-xx`), **RECOMMENDATION** (not binding).
+Labels: **CONFIRMED** (from the PDF), **APPROVED DECISION** (decided by the project owner), **DERIVED**, **PENDING APPROVAL** (`PA-xx`), **RECOMMENDATION** (not binding).
 
 ---
 
@@ -23,6 +23,9 @@ Phase 1 is the Water Delivery MVP `[PDF §8]`. Phase 2 and Phase 3 requirements 
 
 | Term | Meaning |
 |---|---|
+| Ramu Kaka app | The **single** React Native mobile application used by all four roles (BR-27) |
+| Panel | The part of the app for one role: Customer, Delivery Partner, Store Manager or Super Admin. The PDF's "Customer App", "Delivery Partner App", "Store Manager Dashboard" and "Super Admin Dashboard" are all panels of the one app. |
+| App shell | The shared start of the app: language, login, role check and routing to a panel |
 | COD | Cash on Delivery |
 | DP | Delivery Partner |
 | SM | Store / Warehouse Manager |
@@ -44,7 +47,7 @@ Phase 1 is the Water Delivery MVP `[PDF §8]`. Phase 2 and Phase 3 requirements 
 ## 2. Overall Description
 
 ### 2.1 Product Perspective
-One shared backend (Supabase: Postgres, Auth, Storage, Edge Functions, Realtime) serves four client panels `[PDF §7]`. The AI assistant (Gemini API) is reachable **only** through server-side functions `[PDF §7]`.
+One shared backend (Supabase: Postgres, Auth, Storage, Edge Functions, Realtime) `[PDF §7]` serves **one mobile app containing four role-based panels** (BR-27, BR-28). There is no web dashboard. The AI assistant (Gemini API) is reachable **only** through server-side functions `[PDF §7]`.
 
 ### 2.2 User Classes
 
@@ -52,11 +55,11 @@ One shared backend (Supabase: Postgres, Auth, Storage, Edge Functions, Realtime)
 |---|---|---|---|
 | Customer | Low to medium (OBJ-02) | Android phone, often low-end (RECOMMENDATION: design for it) | Voice-first; Hindi, English or Bhojpuri |
 | Delivery Partner | Low to medium | Android phone | Works outdoors, needs large controls |
-| Store Manager | Medium | Platform **PA-10** | Access limited to one store |
-| Super Admin | Medium to high | Platform **PA-10** | Platform-wide access |
+| Store Manager | Medium | Android phone, Ramu Kaka app (iOS **PA-12**) | Access limited to one store |
+| Super Admin | Medium to high | Android phone, Ramu Kaka app (iOS **PA-12**) | Platform-wide access |
 
 ### 2.3 Operating Environment
-- Mobile: React Native + TypeScript, Android build through Android Studio `[PDF §7]`. iOS is **PA-12**.
+- Mobile: **one** React Native + TypeScript app for all roles (BR-27), Android build through Android Studio `[PDF §7]`. iOS is **PA-12**.
 - Backend: Supabase managed cloud `[PDF §7]`. Region is **PA-42**.
 - Network: Bihar districts may have patchy 3G/4G. **RECOMMENDATION:** design for slow and intermittent connectivity (see NFR-PERF, NFR-REL).
 
@@ -66,6 +69,7 @@ One shared backend (Supabase: Postgres, Auth, Storage, Edge Functions, Realtime)
 - C-03: Sensitive operations (wallet, assignment, pricing, finance) run server-side `[PDF §7]`.
 - C-04: COD is the only payment method in Phase 1 `[PDF §6]`.
 - C-05: All roles authenticate with Supabase Auth OTP `[PDF §7]` (BR-26).
+- C-06 (APPROVED DECISION): one React Native app with four role-based panels, no separate apps, no web dashboard (BR-27, BR-28).
 
 ### 2.5 Assumptions (to be confirmed)
 - A-01: Android only for Phase 1 (**PA-12**).
@@ -73,10 +77,24 @@ One shared backend (Supabase: Postgres, Auth, Storage, Edge Functions, Realtime)
 - A-03: Delivery partners belong to a single store (**PA-14**).
 - A-04: Prices are in INR, including any taxes (**PA-43**).
 - A-05: A store and its warehouse are the same location (**PA-54**).
+- A-06: One role per account (**PA-60**).
 
 ## 3. Functional Requirements
 
 Requirement IDs match [PRD.md](./PRD.md). Each requirement below adds **acceptance criteria (AC)**. An AC that depends on an open decision cites the relevant `PA-xx` item.
+
+### 3.0 App Shell: Login, Roles and Panel Access (APPROVED DECISION, BR-27, BR-28)
+
+| ID | Requirement | Acceptance criteria |
+|---|---|---|
+| FR-APP-01 | One app, four panels | AC1: A single installable Android app contains the Customer, Delivery Partner, Store Manager and Super Admin panels. AC2: There is no other app and no web dashboard. |
+| FR-APP-02 | Login, then role check | AC1: The user logs in with phone OTP (BR-26). AC2: The app then reads the user's roles, account status and (for staff) store assignment **from the backend**. AC3: The role is never taken from anything the user typed or chose. |
+| FR-APP-03 | Automatic routing and panel isolation | AC1: The app opens the panel that matches the role, without the user choosing. AC2: Each panel has its own navigation and screens. No panel's navigation can open another panel's screens. AC3: Every screen checks the current role before it opens, including screens opened from notifications or links (UX guard only; real enforcement is NFR-SEC-14). |
+| FR-APP-04 | Role assignment | AC1: Self-registration creates a **customer** only (DR-12). AC2: Delivery Partner, Store Manager and Super Admin roles are set only by the Super Admin through a server function (FR-SA-03). AC3: No user can change their own role or status (NFR-SEC-09). AC4: The first Super Admin is created by a one-time server-side setup script, never from the app. AC5: More than one role per account is **PA-60**. |
+| FR-APP-05 | Access status screens | AC1: Suspended account → "Account suspended" screen. AC2: Staff account not yet approved → "Waiting for approval" screen. AC3: No valid role → "No access" screen. All screens are shown in the user's language. |
+| FR-APP-06 | Role re-check | AC1: The app re-checks role and status on app start, on return from the background, when a notification opens a screen, and whenever the backend returns `FORBIDDEN` or `ACCOUNT_SUSPENDED`. AC2: If the role or status changed, the app routes again or logs out. |
+| FR-APP-07 | Permissions per role | AC1: Device permissions are requested only when the user's role and the current feature need them (ADR-09). For example, a customer is never asked for camera access for attendance photos. AC2: Each request is preceded by a short explanation in the user's language. AC3: Background location is never requested (DR-13). AC4: If a permission is refused, the feature explains what is needed and offers an alternative where one exists (e.g. typing an address instead of using the map). |
+| FR-APP-08 | Logout | AC1: Logout clears the session and all cached panel data from the device (L10). |
 
 ### 3.1 Authentication and Accounts
 
@@ -85,9 +103,9 @@ Requirement IDs match [PRD.md](./PRD.md). Each requirement below adds **acceptan
 | FR-CU-01 | Customer OTP registration and login | AC1: User enters an Indian mobile number and receives an OTP by SMS (provider **PA-22**). AC2: A valid OTP creates or logs into the account. AC3: An invalid or expired OTP is rejected with a clear message in the selected language. AC4: OTP rate limiting applies (NFR-SEC-05). AC5 (DERIVED from FR-DP-07, which shows the customer's name to the DP): a new customer enters their name. |
 | FR-DP-01 | DP secure login and profile | AC1: Login by phone OTP (CONFIRMED, BR-26). Any extra checks are **PA-15**. AC2: Only accounts created or approved by SM/SA can log in (**PA-14**). AC3: DP can view their profile and edit only the fields allowed by **PA-14**. |
 | FR-SA-03 | SA creates, approves and suspends store and manager accounts | AC1: A suspended manager is blocked from every API **immediately**, even with a login session that has not expired (DR-08, NFR-SEC-08). AC2: Every create, approve and suspend action is written to the audit log. |
-| — | Role resolution | AC1: Each authenticated user has one or more roles from {customer, delivery_partner, store_manager, super_admin}. AC2: Each panel rejects users who lack its role. AC3: Every request checks the account's role **and** its active status (NFR-SEC-08). |
+| — | Role resolution | AC1: Each authenticated user has a role from {customer, delivery_partner, store_manager, super_admin} (more than one is **PA-60**). AC2: Each panel and every backend call rejects users who lack its role (FR-APP-03, NFR-SEC-14). AC3: Every request checks the account's role **and** its active status (NFR-SEC-08). |
 
-### 3.2 Customer App
+### 3.2 Customer Panel
 
 | ID | Requirement | Acceptance criteria |
 |---|---|---|
@@ -117,7 +135,7 @@ FR-CU-05 (talk to the Ramu Kaka AI assistant by voice) is detailed by FR-AI-01 t
 | FR-AI-07 | Usage logging | AC1: **Every Gemini API call** logs customer, session, turn, model, input/output units, estimated cost and timestamp, all server-side. AC2: Per-turn and per-session totals are sums of those rows. AC3: The cost reporting currency is **PA-57**. |
 | FR-AI-08 | Ground truth from backend | AC1: Prices, stock, store open/closed state and delivery rules come from backend tool/function calls. AC2: The quote the assistant reads out equals the server quote. AC3: The AI cannot set or change any price, discount, charge or wallet amount (DR-09). |
 
-### 3.4 Delivery Partner App
+### 3.4 Delivery Partner Panel
 
 | ID | Requirement | Acceptance criteria |
 |---|---|---|
@@ -131,7 +149,7 @@ FR-CU-05 (talk to the Ramu Kaka AI assistant by voice) is detailed by FR-AI-01 t
 | FR-DP-11 | Failed delivery and issues | AC1: DP picks a reason and adds an optional note or photo. AC2: Order moves to `failed` or an issue state (handling **PA-17**; stock handling **PA-49**). |
 | FR-DP-12 | History and performance | AC1: Shows daily attendance, delivery list, counts and COD totals. AC2: Performance metric definitions are **PA-55** (RECOMMENDATION: deliveries completed, average delivery time, failure rate). |
 
-### 3.5 Store Manager Dashboard
+### 3.5 Store Manager Panel (the PDF's "Store Manager Dashboard")
 
 | ID | Requirement | Acceptance criteria |
 |---|---|---|
@@ -147,7 +165,7 @@ FR-CU-05 (talk to the Ramu Kaka AI assistant by voice) is detailed by FR-AI-01 t
 | FR-SM-14 | Reviews, complaints and feedback | AC1: Can view and respond to their store's reviews and complaints. Allowed actions are **PA-25** and **PA-26**. AC2: Whether "feedback" is a separate type is **PA-26**. |
 | FR-SM-15 | DP attendance and performance | AC1: Attendance log with photo verification queue (**PA-06**). AC2: Performance metrics per **PA-55**. |
 
-### 3.6 Super Admin Dashboard
+### 3.6 Super Admin Panel (the PDF's "Super Admin Dashboard")
 
 | ID | Requirement | Acceptance criteria |
 |---|---|---|
@@ -171,7 +189,7 @@ FR-CU-05 (talk to the Ramu Kaka AI assistant by voice) is detailed by FR-AI-01 t
 | FR-WP-04 | Every wallet credit and debit has a secure transaction record | AC1: Append-only ledger entry with actor, reason, reference and idempotency key (BR-17, NFR-SEC-04). AC2: Writes serialized per wallet (NFR-SEC-12). |
 | FR-WP-05 | Super Admin can issue approved wallet credits | See FR-SA-07. Other crediting actors are **PA-52**. |
 | FR-WP-06 | Online payments may be introduced later | Phase 2, "if required". Not built in Phase 1. `payment_method` is an enum so it can be extended. |
-| FR-WP-07 | Dashboard tracks COD collections, outstanding settlements and promotional expenses | AC1: Covered by FR-SM-12 (store) and FR-SA-08 (platform). AC2: Settlement rules are **PA-08**. |
+| FR-WP-07 | Dashboard tracks COD collections, outstanding settlements and promotional expenses | AC1: Covered by FR-SM-12 (Store Manager panel) and FR-SA-08 (Super Admin panel). AC2: Settlement rules are **PA-08**. AC3: File export is **PA-62**. |
 
 ### 3.8 KPI Definitions — PENDING APPROVAL (PA-55, PA-48)
 
@@ -208,19 +226,23 @@ The PDF lists the KPIs `[PDF §10]` but does not define them. The definitions be
 | NFR-SEC-08 | **Account status is checked on every request.** RLS policies and every server function verify the user's role *and* that the account (and, for managers, the store assignment) is active. Suspension takes effect immediately, without waiting for the login token to expire. | DERIVED (DR-08) |
 | NFR-SEC-09 | **Protected profile fields.** Users can change only safe fields of their own profile (e.g. `full_name`, `preferred_language`). `status`, `phone` and roles can only be changed by server functions with admin checks. | RECOMMENDATION |
 | NFR-SEC-10 | **AI abuse protection.** The AI endpoint has per-customer and per-device rate limits. Prompt-injection protection: the model's tools only accept customer inputs (product, quantity, address, coupon code), all of which are validated on the server. The model cannot set amounts (DR-09) or place orders (DR-10). Business-level AI caps are **PA-35**. | RECOMMENDATION (technical protection) |
-| NFR-SEC-11 | **Service-role key handling.** The Supabase service-role key exists only in Edge Function secrets. It is never in client apps, dashboards or git. Functions that use it must authorize the caller explicitly (JWT, role, status, store scope) before any privileged query. | RECOMMENDATION |
+| NFR-SEC-11 | **Service-role key handling.** The Supabase service-role key exists only in Edge Function secrets. It is never in the mobile app or in git. Functions that use it must authorize the caller explicitly (JWT, role, status, store scope) before any privileged query. | RECOMMENDATION |
 | NFR-SEC-12 | **Serialized wallet writes.** Ledger writes for one wallet happen one at a time (row lock on the wallet) so that `balance_after` and the balance stay correct under concurrent credits and debits. Every write requires an idempotency key. | RECOMMENDATION |
 | NFR-SEC-13 | **AI order confirmation enforced by the server** as described in DR-10 and FR-AI-05. | APPROVED DESIGN RULE |
+| NFR-SEC-14 | **The app is never trusted for access control.** All four panels ship inside one app, so anyone could inspect the Manager and Admin screens. Hiding screens is only for convenience. Every API call and database read checks role, status and store scope on the backend. | APPROVED DECISION (BR-28) |
+| NFR-SEC-15 | **Staff device protection.** Manager and Admin data is not stored permanently on the device and is cleared on logout. App lock and inactivity logout for staff panels are **PA-61**. | RECOMMENDATION (+ PA-61) |
+| NFR-SEC-16 | **Least device permissions.** Only foreground permissions, each requested per role and feature (FR-APP-07, ADR-09). No background location (DR-13). | APPROVED DECISION (BR-28) |
 
 ### 4.2 Performance (NFR-PERF), RECOMMENDATIONS
 
 | ID | Requirement |
 |---|---|
-| NFR-PERF-01 | App cold start under 4 s on a low-end Android device (2 GB RAM) |
+| NFR-PERF-01 | App cold start to the Customer panel home under 4 s on a low-end Android device (2 GB RAM) |
 | NFR-PERF-02 | Catalog loads in under 2 s on 4G |
 | NFR-PERF-03 | Voice turn (end of speech → start of spoken reply) under 4 s at p75 |
 | NFR-PERF-04 | Order-accept round trip under 1.5 s at p95 |
-| NFR-PERF-05 | Android APK/AAB download size under 40 MB |
+| NFR-PERF-05 | Android download size under 40 MB, including all four panels |
+| NFR-PERF-06 | Panels are loaded only when opened (lazy loading), so customers don't pay the startup cost of staff panels |
 
 ### 4.3 Reliability (NFR-REL), RECOMMENDATIONS
 - NFR-REL-01: Order placement is idempotent. A retry after a network drop does not create a duplicate order.
@@ -241,7 +263,7 @@ The PDF lists the KPIs `[PDF §10]` but does not define them. The definitions be
 
 ### 4.7 Observability and Cost (NFR-OBS)
 - NFR-OBS-01 (CONFIRMED): AI usage and cost are logged per Gemini call.
-- NFR-OBS-02 (RECOMMENDATION): crash reporting and error logging for the mobile apps and Edge Functions.
+- NFR-OBS-02 (RECOMMENDATION): crash reporting and error logging for the mobile app (tagged by panel) and Edge Functions.
 
 ### 4.8 Compliance (NFR-COMP), PENDING
 - Data privacy (DPDP Act 2023), retention periods, audio storage, and account deletion: **PA-34**, **PA-45**.

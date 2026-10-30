@@ -4,9 +4,11 @@
 |---|---|
 | Backend | Supabase: Auth, PostgREST, Postgres functions (RPC), Edge Functions (CONFIRMED, `[PDF §7]`) |
 | Status | **PROPOSED, not implemented** |
-| Last updated | 2026-10-30 (audit corrections) |
+| Last updated | 2026-10-30 (single mobile app decision) |
 
-> This document is the *planned* interface between clients and the backend. Names and payloads may change in Level 2 and Level 3. Endpoints that depend on open decisions cite the `PA-xx` item.
+> There is **one client**: the Ramu Kaka mobile app, which contains all four panels (BR-27). The endpoints below are grouped by the panel that uses them. **Every endpoint lists the roles allowed to call it, and the backend rejects every other role.** All panels ship in the same app, so any endpoint can be discovered (NFR-SEC-14).
+>
+> This document is the *planned* interface between the app and the backend. Names and payloads may change in Level 2 and Level 3. Endpoints that depend on open decisions cite the `PA-xx` item.
 
 ---
 
@@ -15,7 +17,7 @@
 | Pattern | Used for | Protection |
 |---|---|---|
 | **Supabase Auth** | OTP sign-in for all roles (BR-26), sessions | Supabase Auth + SMS provider (**PA-22**) |
-| **Direct table reads** (PostgREST via supabase-js) | Catalog, own orders, own wallet history, notifications, dashboard lists | RLS (role + active status + store scope) |
+| **Direct table reads** (PostgREST via supabase-js) | Catalog, own orders, own wallet history, notifications, Manager/Admin panel lists | RLS (role + active status + store scope) |
 | **Direct table writes** | **Only** low-risk own data: own addresses, own device tokens, marking own notifications read | RLS |
 | **Edge Functions** `POST /functions/v1/<name>` | Everything else that writes: AI, quotes, orders, delivery requests, catalog, stock, settings, wallet, accounts, notifications | JWT + explicit role/status/scope check inside the function (NFR-SEC-08, NFR-SEC-11) |
 | **Postgres functions (RPC)** | Atomic transactional operations, called by Edge Functions | `SECURITY DEFINER` + explicit role checks |
@@ -34,7 +36,7 @@
 ### Server-function security checklist (applies to every Edge Function)
 1. Verify the JWT.
 2. Load the caller's roles and **check the account is active** (and, for managers, that the store assignment is active) (NFR-SEC-08).
-3. Check the role and store scope for the requested action (BR-01).
+3. Check that the caller's role is allowed for this endpoint, and check the store scope (BR-01, BR-28). Never rely on the app having hidden the screen (NFR-SEC-14).
 4. Validate every input. Never trust amounts sent by the client (BR-21).
 5. Only then use the service-role key for privileged queries (NFR-SEC-11).
 6. Write an audit entry for money, price, stock and account actions (NFR-SEC-07).
@@ -63,13 +65,13 @@
 |---|---|---|
 | Request OTP | `supabase.auth.signInWithOtp({ phone })` | FR-CU-01, BR-26. Rate limited (NFR-SEC-05) |
 | Verify OTP | `supabase.auth.verifyOtp({ phone, token, type: 'sms' })` | Returns a session |
-| Get my profile and roles | Read own `profiles` row + own `user_roles` rows (RLS) | Routes the user to the correct panel. Suspended → `ACCOUNT_SUSPENDED` |
+| Get my access | `get-my-access` (Edge Fn): returns roles, account status, staff approval status and store assignment | Used by the app shell to route to a panel and to re-check access (FR-APP-02, FR-APP-06). Suspended → `ACCOUNT_SUSPENDED`. Read-only: no endpoint lets a user change their own role (FR-APP-04) |
 | Update my profile | `update-my-profile` (Edge Fn) | Only `full_name` and `preferred_language` (NFR-SEC-09). Used by customers (FR-CU-03) and, within **PA-14** limits, by DPs (FR-DP-01) |
 | Sign out | `supabase.auth.signOut()` | |
 
 Extra DP login checks are **PA-15**. Account deletion is **PA-45**.
 
-## 3. Customer APIs
+## 3. Customer Panel APIs (role: `customer`)
 
 | # | Endpoint | Type | Req ID | Description |
 |---|---|---|---|---|
@@ -130,7 +132,7 @@ Server checks:
 
 It then creates the order in one transaction. Stock is handled per **PA-49**. Delivery requests are sent to eligible DPs (**PA-03**).
 
-## 4. AI Assistant API
+## 4. AI Assistant API (Customer panel, role: `customer`)
 
 | # | Endpoint | Type | Req ID |
 |---|---|---|---|
@@ -169,7 +171,7 @@ Response:
 - **Rate limits and account-status check** run before any Gemini call. If exceeded → `RATE_LIMITED` (NFR-SEC-10). Business caps are **PA-35**.
 - **Usage logging:** one `ai_usage_logs` row per Gemini call (conversation, tool loop, confirmation check), grouped by `turn_id` (FR-AI-07).
 
-## 5. Delivery Partner APIs
+## 5. Delivery Partner Panel APIs (role: `delivery_partner`)
 
 | # | Endpoint | Type | Req ID | Description |
 |---|---|---|---|---|
@@ -185,7 +187,7 @@ Response:
 | D10 | `my-performance` | View / RPC | FR-DP-12 | Attendance, history, counts. Metrics **PA-55** |
 | D11 | `update-my-profile` | Edge Fn | FR-DP-01 | Shared with §2. Editable fields **PA-14** |
 
-## 6. Store Manager APIs (all scoped to the manager's store, BR-01)
+## 6. Store Manager Panel APIs (role: `store_manager`, scoped to the manager's store, BR-01)
 
 | # | Endpoint | Type | Req ID |
 |---|---|---|---|
@@ -203,7 +205,7 @@ Response:
 | M12 | `store-reviews` / `store-complaints` read + `respond-review` / `update-complaint` | View + Edge Fn | FR-SM-14 (**PA-25**, **PA-26**) |
 | M13 | `verify-attendance` | Edge Fn | FR-SM-15 (**PA-06**) |
 
-## 7. Super Admin APIs
+## 7. Super Admin Panel APIs (role: `super_admin`)
 
 | # | Endpoint | Type | Req ID |
 |---|---|---|---|
@@ -221,6 +223,7 @@ Response:
 | S12 | `ai-usage-report` | RPC/view | FR-SA-11, KPI-09 (currency **PA-57**) |
 | S13 | `audit-log` read | Table | NFR-SEC-07 |
 | S14 | `partner-attendance` read (any store, with photos via signed URLs) | View | FR-SA-01 |
+| S15 | `set-user-role` (add or remove a staff role for a phone number; pre-registration before the person's first login) | Edge Fn | FR-SA-03, FR-APP-04 (more than one role per account **PA-60**) |
 
 ### S8 `wallet-credit` example
 ```json
@@ -246,4 +249,4 @@ Response:
 | `dp:<id>:delivery-requests` | Delivery partner | new delivery request, request withdrawn |
 
 ## 9. Versioning
-Edge Functions are versioned by path suffix if a breaking change is needed (e.g. `quote-order-v2`). Generated TypeScript types are shared through `packages/shared-types` (RECOMMENDATION).
+Edge Functions are versioned by path suffix if a breaking change is needed (e.g. `quote-order-v2`). Generated TypeScript types are kept in the app's shared folder (`app/src/shared`) (RECOMMENDATION). Because old app versions stay installed on phones, Edge Functions must keep working with the previous app version until most users have updated.

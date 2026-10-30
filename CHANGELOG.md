@@ -3,6 +3,34 @@
 This file records changes to the Ramu Kaka documentation and business rules.
 Format: newest first. IDs refer to [docs/BUSINESS_RULES.md](docs/BUSINESS_RULES.md) and [docs/SRS.md](docs/SRS.md).
 
+## [0.3.0] — 2026-10-30 — Level 0: Single mobile app architecture
+
+Decision by the project owner (Priya): Ramu Kaka is **one React Native mobile app** containing all four role-based panels. There are no separate apps and no web dashboard.
+
+### Decisions recorded
+- **PA-10 DECIDED**: the Manager and Admin panels live inside the single app; no web dashboard.
+- **PA-11 DECIDED**: one app for all roles, replacing the earlier "two apps + web dashboard" recommendation.
+- New approved rules: **BR-27** (one app, four panels, shared codebase, login and backend) and **BR-28** (backend-assigned roles, automatic routing, no self role change, backend enforcement, separate panel navigation, role-based device permissions).
+- New derived rules: **DR-12** (self-registration = customer only; staff roles only from the Super Admin) and **DR-13** (no background location).
+- New label **APPROVED DECISION** for owner decisions, with a decision log in BUSINESS_RULES §4.0.
+
+### New pending decisions
+- **PA-60** more than one role per account · **PA-61** app lock / auto-logout for staff panels · **PA-62** report export (no web dashboard).
+- PA-12 (iOS) marked more important: managers and the owner can only use the app. PA-47 and PA-57 reworded for panels.
+
+### Documents updated
+- **SYSTEM_ARCHITECTURE**: one app with an app shell and four panels (diagram, components). ADR-06/07 decided. New ADR-08 (login, role routing, panel isolation) and ADR-09 (device permissions per role). New §5 "Technical limitations and security implications" (L1–L11). Repository layout is now one app folder with per-panel folders.
+- **SRS**: new §3.0 App Shell requirements FR-APP-01…08. Panels renamed (Customer/Delivery Partner/Store Manager/Super Admin panel). New NFR-SEC-14 (app never trusted), NFR-SEC-15 (staff device protection), NFR-SEC-16 (least permissions), NFR-PERF-06 (lazy-loaded panels).
+- **PRD**: note that the PDF's "apps" and "dashboards" are panels of one app. No PDF requirement changed.
+- **DATABASE_SCHEMA**: `user_roles` rules (read-only for users, customer on self-registration, staff roles only via Super Admin).
+- **API_DOCUMENTATION**: one client; endpoints grouped by panel with allowed roles; new `get-my-access` and `set-user-role` (S15); compatibility note for older app versions.
+- **UI_UX_DESIGN**: new shared app-shell screens (SH-S01…S09); panels renamed; UXR-13…15 (panel navigation, phone-first staff screens, permission explanations).
+- **USER_FLOWS**: new UF-00 login and role-based routing.
+- **TESTING_STRATEGY**: web dashboard tests removed; all-panel E2E and release regression; tests for routing, isolation, role assignment, "app never trusted" sweep, permissions.
+- **DEVELOPMENT_ROADMAP**: React Native app now initialized in **Level 3** (app shell, login, role routing). Levels 4–7 add the Customer, Store Manager, Delivery Partner and Super Admin panels to the same app. Blocking lists updated (PA-60 → Level 2, PA-61 → Level 5, PA-62 → Level 7).
+- **CLAUDE.md, README.md**: one-app rules and description.
+- **New: docs/PROJECT_OVERVIEW.md**: plain-language explanation of the whole project.
+
 ## [0.2.0] — 2026-10-30 — Level 0: Documentation audit corrections
 
 The user approved all 11 corrections from the documentation quality audit. No PDF requirement was removed or changed. No pending business decision was answered.

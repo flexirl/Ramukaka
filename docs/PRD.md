@@ -7,11 +7,12 @@
 | This document | Structured restatement of the source PRD with traceability IDs |
 | Level | Level 0 – Project Planning and Documentation |
 | Status | **DRAFT – awaiting stakeholder approval** |
-| Last updated | 2026-10-30 (audit corrections; no PDF requirement changed) |
+| Last updated | 2026-10-30 (single mobile app decision; no PDF requirement changed) |
 
 > **How to read this document**
 > - **CONFIRMED** = stated in the source PDF. The section reference is shown as `[PDF §n]`.
 > - **PENDING APPROVAL** = not decided in the PDF. Each item has a `PA-xx` ID. The full list is in [BUSINESS_RULES.md §4](./BUSINESS_RULES.md#4-pending-approval-register).
+> - **APPROVED DECISION** = a pending item the project owner has decided (date and approver recorded in BUSINESS_RULES §4.0).
 > - **RECOMMENDATION** = a proposal from the documentation team. It is **not** a requirement until it is approved.
 
 ---
@@ -52,9 +53,11 @@ Ramu Kaka is a **voice-first, AI-powered delivery platform** for ordering daily 
 
 PENDING APPROVAL:
 - **PA-07**: the expected voice quality for each language, especially Bhojpuri.
-- **PA-47**: whether the Delivery Partner app and the dashboards are also translated, or only the Customer app.
+- **PA-47**: whether the Delivery Partner, Store Manager and Super Admin panels are also translated, or only the Customer panel.
 
 ## 4. Users and Panels — CONFIRMED `[PDF §4]`
+
+> **APPROVED DECISION (2026-10-30, BR-27, BR-28):** all four panels are parts of **one React Native mobile app**. After login, the app opens the panel that matches the user's backend-assigned role. The PDF's names "Customer App", "Delivery Partner App", "Store Manager Dashboard" and "Super Admin Dashboard" are kept below as the panel names. They are not separate applications, and there is no web dashboard.
 
 | Panel | Primary user | Scope |
 |---|---|---|
@@ -64,7 +67,7 @@ PENDING APPROVAL:
 | 4. Super Admin / Owner Dashboard | Owner / platform admin | Platform-wide control and finance |
 
 Open questions about the panels:
-- The PDF does not say which platform the dashboards run on (web or mobile) → **PA-10**.
+- The PDF did not say where the dashboards run (**PA-10**). **Decided 2026-10-30:** inside the single mobile app (BR-27). PA-11 (one app or several) was decided the same way.
 - The PDF says "Store / Warehouse Manager" and "work-start photo from the warehouse". Whether a store and a warehouse are always the same place → **PA-54**.
 - Authentication is "Supabase Auth with OTP verification" `[PDF §7]`, with no per-panel exception, so OTP applies to all four roles (BR-26).
 - "Offers" in this PRD means promotional offers. Dispatching an order to delivery partners is called a **delivery request** in the technical documents.
@@ -107,7 +110,7 @@ Open questions about the panels:
 
 ### 4.3 Panel 3 — Store / Warehouse Manager Dashboard `[PDF §4, Panel 3]`
 
-Each store has its own manager and a separate dashboard. A manager can access **only their assigned store**.
+Each store has its own manager and a separate dashboard. A manager can access **only their assigned store**. (In this project, the "separate dashboard" is the Store Manager panel of the single app, showing only that manager's store.)
 
 | ID | Area | Requirement |
 |---|---|---|
@@ -191,6 +194,8 @@ The AI assistant is the **core differentiating feature**.
 | Android build and deployment | Android Studio |
 | Version control | GitHub |
 
+**App packaging (APPROVED DECISION, BR-27):** one React Native app containing all four panels. No separate apps, no web dashboard.
+
 **Architecture requirement (CONFIRMED):** all panels share one backend and one database, with role-based access control. Wallet credits, order assignment, pricing and financial calculations must be validated **server-side**. "API keys must not be exposed in the mobile application." Secret keys never ship. Whether platform-restricted public keys (Maps, FCM) are acceptable is **PA-53**.
 
 See [SYSTEM_ARCHITECTURE.md](./SYSTEM_ARCHITECTURE.md) for the proposed design.
@@ -203,7 +208,7 @@ See [SYSTEM_ARCHITECTURE.md](./SYSTEM_ARCHITECTURE.md) for the proposed design.
 | **Phase 2 – Optimization** | Better voice recognition and language handling; better analytics and reporting; advanced offers and engagement; online payments if required; better attendance verification and financial reconciliation. |
 | **Phase 3 – Business Expansion** | Milk, curd, paneer, groceries and daily essentials; more districts and service areas; more stores, suppliers and delivery partners; more automation and BI. |
 
-The engineering breakdown of these phases into levels is in [DEVELOPMENT_ROADMAP.md](./DEVELOPMENT_ROADMAP.md).
+In this project, each "app" and "dashboard" in the phase list is a panel of the single Ramu Kaka app (BR-27). The engineering breakdown of these phases into levels is in [DEVELOPMENT_ROADMAP.md](./DEVELOPMENT_ROADMAP.md).
 
 ## 9. Key Business Rules — CONFIRMED `[PDF §9]`
 
@@ -243,7 +248,7 @@ The PDF itself lists these as undecided:
 | PA-08 | COD settlement and financial reporting rules |
 | PA-09 | Final MVP scope and launch timeline |
 
-The documentation review found further gaps, `PA-10` to `PA-59`. They are listed in [BUSINESS_RULES.md §4](./BUSINESS_RULES.md#4-pending-approval-register).
+The documentation review found further gaps, `PA-10` to `PA-62` (PA-10 and PA-11 are now decided). They are listed in [BUSINESS_RULES.md §4](./BUSINESS_RULES.md#4-pending-approval-register).
 
 ## 12. Out of Scope for Phase 1 (per PDF phasing)
 

@@ -4,7 +4,7 @@
 |---|---|
 | Database | Supabase PostgreSQL (CONFIRMED, `[PDF §7]`) |
 | Status | **PROPOSED, conceptual model only** |
-| Last updated | 2026-10-30 (audit corrections) |
+| Last updated | 2026-10-30 (single mobile app decision) |
 
 > ⚠️ **No tables, SQL or migrations have been created.** This document is a logical model for review. Physical DDL is written in **Level 2**, after approval.
 >
@@ -93,7 +93,11 @@ erDiagram
 | preferred_language | enum `hi` \| `en` \| `bho` | FR-CU-03. **User-editable** |
 | status | enum `active` \| `suspended` | FR-SA-03. **Protected**: admin functions only. Checked on every request (NFR-SEC-08) |
 
-**user_roles**: a user may have several roles (BR-07, BR-23). Changed only by admin functions.
+**user_roles**: the backend source of truth for which panel a user sees (BR-28). The app reads it after login to route the user. Rules:
+- Users can read their own rows but can **never** insert, update or delete them (NFR-SEC-09).
+- Self-registration creates one `customer` row (DR-12).
+- Staff roles are added or removed only by the Super Admin's server function.
+- One role per account until **PA-60** decides otherwise.
 
 | Field | Type | Notes |
 |---|---|---|

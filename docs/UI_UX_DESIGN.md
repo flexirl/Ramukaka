@@ -4,7 +4,7 @@
 |---|---|
 | Design tool | **Google Stitch** (CONFIRMED, `[PDF §7]`) |
 | Status | **DRAFT – screen inventory and principles. Visual designs not yet produced** |
-| Last updated | 2026-10-30 (audit corrections) |
+| Last updated | 2026-10-30 (single mobile app decision) |
 
 > Labels: **CONFIRMED** = from the PDF; **RECOMMENDATION** = proposal; **PA-xx** = pending decision.
 > Branding (name usage, logo, colours) is **PA-38**. Colours below are placeholders only.
@@ -30,7 +30,7 @@
 | UXR-01 | Touch targets at least 48×48 dp. Primary actions full-width and at least 56 dp tall. | UX-02 |
 | UXR-02 | Every icon has a text label. Never use an icon alone. | UX-03, UX-05 |
 | UXR-03 | Body text at least 16 sp. Prices and order totals at least 20 sp. | Readability |
-| UXR-04 | At most 3–4 bottom tabs in the Customer App (for example, **Home/Order, My Orders, Wallet, Profile**). | UX-04 |
+| UXR-04 | At most 3–4 bottom tabs in the Customer panel (for example, **Home/Order, My Orders, Wallet, Profile**). | UX-04 |
 | UXR-05 | Use product photos, not only text, for water jars and bottles. | UX-05 |
 | UXR-06 | A large microphone button is always visible on the Customer home screen. | UX-06 |
 | UXR-07 | Every voice reply also appears as text, along with a visual **order summary card** before confirmation. | BR-12 |
@@ -39,16 +39,34 @@
 | UXR-10 | Devanagari font that renders well on low-end Android devices (for example, Noto Sans Devanagari). | Hindi/Bhojpuri |
 | UXR-11 | Clear offline and error states, in the user's language, with one obvious retry action. | Patchy networks |
 | UXR-12 | Show money as `₹` + Indian digit grouping (e.g. ₹1,20,000). | Local convention |
+| UXR-13 | Each panel has its **own bottom navigation** and a clear panel name in the header (e.g. "Ramu Kaka – Store Manager"), so staff always know which panel they are in. | BR-28 |
+| UXR-14 | Store Manager and Super Admin screens are designed **for phones**: summary cards, filters and short lists instead of wide tables; one main action per screen. | BR-27 (no web dashboard) |
+| UXR-15 | Before any permission request, show a short screen explaining why it is needed, in the user's language. | BR-28 |
 
 ## 3. Screen Inventory
 
-### 3.1 Customer App (Android)
+All screens below belong to **one Ramu Kaka app** (BR-27). The shared app-shell screens come first; then each panel has its own set of screens and its own navigation (BR-28).
+
+### 3.0 Shared App Shell
 
 | # | Screen | Requirements |
 |---|---|---|
-| CU-S01 | Splash + language picker (first launch) | FR-CU-03 |
-| CU-S02 | Phone number entry (+ name for new users, DERIVED from FR-DP-07) | FR-CU-01 |
-| CU-S03 | OTP verification | FR-CU-01 |
+| SH-S01 | Splash + language picker (first launch) | FR-CU-03, FR-APP-01 |
+| SH-S02 | Phone number entry (all roles) | FR-CU-01, BR-26 |
+| SH-S03 | OTP verification (all roles) | FR-CU-01, BR-26 |
+| SH-S04 | Checking access (loading while the role is read from the backend) | FR-APP-02 |
+| SH-S05 | Account suspended | FR-APP-05 |
+| SH-S06 | Waiting for approval (staff accounts not yet approved) | FR-APP-05 |
+| SH-S07 | No access | FR-APP-05 |
+| SH-S08 | Permission explanation sheet (reused before each permission request) | FR-APP-07, UXR-15 |
+| SH-S09 | Panel switcher (only if **PA-60** allows more than one role) | PA-60 |
+
+### 3.1 Customer Panel
+
+| # | Screen | Requirements |
+|---|---|---|
+| CU-S01–03 | (Moved to the shared app shell: SH-S01–SH-S03) | — |
+| CU-S03a | Name entry for new customers (DERIVED from FR-DP-07) | FR-CU-01 |
 | CU-S04 | Add first address (map pin + form) | FR-CU-02, BR-02 (**PA-36**) |
 | CU-S05 | "Not serviceable yet" state | BR-02 |
 | CU-S06 | **Home**: big mic button, quick-order tiles (e.g. 20 L jar), categories | FR-CU-04, FR-CU-07 |
@@ -68,11 +86,11 @@
 | CU-S20 | Help / complaint / feedback | **PA-26** |
 | CU-S21 | Store closed / out-of-stock states | BR-09 |
 
-### 3.2 Delivery Partner App (Android)
+### 3.2 Delivery Partner Panel
 
 | # | Screen | Requirements |
 |---|---|---|
-| DP-S01 | Login by phone OTP (BR-26; extra checks **PA-15**) | FR-DP-01 |
+| DP-S01 | (Uses the shared login, SH-S02/03; extra checks **PA-15**) | FR-DP-01 |
 | DP-S02 | Home: large **On Duty / Off Duty** switch, today's summary | FR-DP-02 |
 | DP-S03 | Start-of-work photo capture | FR-DP-03 (**PA-06**) |
 | DP-S04 | New **delivery request** (full-screen card with Accept / Reject; contents before acceptance **PA-56**; timer **PA-03**) | FR-DP-04/05 |
@@ -85,11 +103,11 @@
 
 **Rule:** the status button changes its label at each step ("Picked Up" → "Out for Delivery" → "Delivered"), so the DP only ever sees one next action (BR-11).
 
-### 3.3 Store Manager Dashboard (platform **PA-10**)
+### 3.3 Store Manager Panel (phone screens, UXR-14)
 
 | # | Screen | Requirements |
 |---|---|---|
-| SM-S01 | Login | — |
+| SM-S01 | (Uses the shared login, SH-S02/03) | — |
 | SM-S02 | Overview: open/close toggle (precedence **PA-50**), order counters, DPs on duty, alerts (unaccepted orders) | FR-SM-01/04 |
 | SM-S03 | Orders board (Pending / Active / Completed / Failed), assign action | FR-SM-01/02/03 |
 | SM-S04 | Delivery partners: duty status, attendance, photo verification queue | FR-SM-02/15 |
@@ -101,7 +119,7 @@
 | SM-S10 | Coupons & cashback (if permitted) | FR-SM-13 |
 | SM-S11 | Reviews, complaints & feedback | FR-SM-14 (**PA-25**, **PA-26**) |
 
-### 3.4 Super Admin Dashboard (platform **PA-10**)
+### 3.4 Super Admin Panel (phone screens, UXR-14)
 
 | # | Screen | Requirements |
 |---|---|---|
@@ -116,6 +134,7 @@
 | SA-S09 | Reviews & complaints | FR-SA-10 |
 | SA-S10 | AI usage & cost (reporting currency **PA-57**) | FR-SA-11 |
 | SA-S11 | Audit log | NFR-SEC-07 |
+| SA-S12 | User roles: pre-register a staff phone number and assign its role and store | FR-APP-04, FR-SA-03 |
 
 ## 4. Voice Assistant UX (RECOMMENDATION)
 
@@ -150,6 +169,6 @@ The customer can confirm by voice **or** by tapping the button (DR-10):
 ## 6. Design Deliverables (Level 1 – Design)
 
 1. Low-fidelity wireframes of every screen in §3, made in Google Stitch.
-2. High-fidelity designs for the Customer and DP apps (Hindi first, English and Bhojpuri variants).
-3. Dashboard designs (after **PA-10**).
+2. High-fidelity designs for the shared app shell and the Customer and Delivery Partner panels (Hindi first, English and Bhojpuri variants).
+3. Store Manager and Super Admin panel designs, for phone screens (UXR-14).
 4. Usability test of the order flows with 5–8 target users in Jamui (RECOMMENDATION).

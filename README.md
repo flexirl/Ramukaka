@@ -13,26 +13,31 @@ The first product is **water delivery** (bottles and jars), starting in **Jamui,
 | Current level | **Level 0 – Project Planning & Documentation** |
 | Application code | Not started (by design) |
 | Database | Conceptual model only (no tables or migrations) |
-| Mobile apps | Not initialized |
+| Mobile app | Not initialized (one React Native app for all roles) |
 | Documentation | Audited and corrected (see [CHANGELOG](CHANGELOG.md)) |
-| Next step | Stakeholder review of `docs/` and decisions on the Pending Approval items (PA-01 to PA-59) |
+| Next step | Stakeholder review of `docs/` and decisions on the Pending Approval items (PA-01 to PA-62; PA-10 and PA-11 decided) |
 
-## Panels
+## One App, Four Panels
+
+Ramu Kaka is a **single Android app** (React Native). After logging in with their phone number, each person is taken automatically to the panel for their role, which is assigned on the server:
 
 | Panel | Users |
 |---|---|
-| Customer App (Android) | Customers: voice/manual ordering, tracking, wallet, offers, reviews |
-| Delivery Partner App (Android) | Delivery staff: attendance, order acceptance, delivery, COD |
-| Store Manager Dashboard | One manager per store: orders, inventory, offers, COD reconciliation |
-| Super Admin Dashboard | Owner: all stores, finance, wallet credits, AI cost tracking |
+| Customer | Customers: voice/manual ordering, tracking, wallet, offers, reviews |
+| Delivery Partner | Delivery staff: attendance, order acceptance, delivery, COD |
+| Store Manager | One manager per store: orders, inventory, offers, COD reconciliation |
+| Super Admin | Owner: all stores, finance, wallet credits, AI cost tracking |
+
+There are no separate apps and no web dashboard.
 
 ## Confirmed Technology Stack
-React Native + TypeScript (Android) · Supabase Auth (OTP) · Supabase PostgreSQL · Supabase server-side functions · Gemini API · Google Stitch (UI/UX) · GitHub · Android Studio
+React Native + TypeScript (one Android app) · Supabase Auth (OTP) · Supabase PostgreSQL · Supabase server-side functions · Gemini API · Google Stitch (UI/UX) · GitHub · Android Studio
 
 ## Documentation
 
 | Document | Description |
 |---|---|
+| [Project Overview](docs/PROJECT_OVERVIEW.md) | **Start here.** The whole project in simple language |
 | [PRD](docs/PRD.md) | Product requirements, restated from the original PDF with IDs |
 | [SRS](docs/SRS.md) | Software requirements with acceptance criteria |
 | [System Architecture](docs/SYSTEM_ARCHITECTURE.md) | Components, ADRs, security |

@@ -4,11 +4,12 @@
 |---|---|
 | Source of truth | Ramu Kaka PRD v1.0 (PDF) |
 | Status | **DRAFT – awaiting approval** |
-| Last updated | 2026-10-30 (documentation audit corrections, see [CHANGELOG](../CHANGELOG.md)) |
+| Last updated | 2026-10-30 (single mobile app decision, see [CHANGELOG](../CHANGELOG.md)) |
 
 Labels used in this document:
 - **CONFIRMED**: stated in the PDF. The source section is cited.
 - **DERIVED**: follows directly from a confirmed requirement. It adds no new business policy.
+- **APPROVED DECISION**: a pending item that the project owner has decided. It records the date and approver.
 - **APPROVED DESIGN RULE**: a technical rule the user approved during Level 0. It is not a business policy.
 - **PENDING APPROVAL**: needs a decision from the business. The ID is `PA-xx`.
 - **RECOMMENDATION**: a proposal only. It does not apply until approved.
@@ -51,6 +52,13 @@ Labels used in this document:
 | BR-25 | The Super Admin sets **store-level operating limits** and user permissions. | §4 Panel 4 |
 | BR-26 | Authentication uses **Supabase Auth with OTP verification**. The PDF gives no per-panel exception, so this applies to all four roles. | §7 |
 
+### 2.1 Approved Decisions (not from the PDF)
+
+| ID | Rule | Source |
+|---|---|---|
+| BR-27 | **One mobile app for everything.** Ramu Kaka is a single React Native mobile application containing all four panels: Customer, Delivery Partner, Store Manager and Super Admin. There is **no** separate customer app, delivery partner app, manager app, admin app or web dashboard. All panels share one codebase, one authentication system and one Supabase backend. | APPROVED DECISION, 2026-10-30, Priya (decides PA-10, PA-11) |
+| BR-28 | **Role-based panels.** After login, the app checks the user's role, which is assigned by the Super Admin/backend, and opens the matching panel automatically. Users **cannot change their own role**. Permissions are **enforced on the backend**. Access between panels is blocked. Each panel has its own navigation and screens. Device permissions are requested **only when the user's role and the feature need them**. | APPROVED DECISION, 2026-10-30, Priya |
+
 ## 3. Derived Rules and Approved Design Rules
 
 | ID | Rule | Type | Derived from |
@@ -66,8 +74,17 @@ Labels used in this document:
 | DR-09 | The AI assistant can never set or change a price, discount, charge or wallet amount. It can only pass customer inputs (product, quantity, address, coupon code) to server functions, which compute every amount. | DERIVED | BR-13, BR-21 |
 | DR-10 | **The AI model cannot place an order.** An order is placed only by the server, for a quote the customer was shown, after one of two server-recorded confirmation events: (a) the customer taps **Confirm** for that quote, or (b) a separate server-side yes/no check classifies the customer's next voice turn as a clear "yes" for that pending quote. Anything unclear → ask again, or ask for a tap. | APPROVED DESIGN RULE (audit, 2026-10-30) | BR-04, BR-12, BR-13, BR-21 |
 | DR-11 | Every change to a product price, stock quantity or availability goes through a server function and is audit-logged. | APPROVED DESIGN RULE (audit, 2026-10-30) | BR-06, BR-21 |
+| DR-12 | A phone number that registers by itself gets the **customer** role only. Delivery Partner, Store Manager and Super Admin roles are given only by the Super Admin through a server function. | DERIVED | FR-CU-01, FR-SA-03, BR-28 |
+| DR-13 | The app never requests **background location**. The PDF has no live-tracking requirement, and BR-28 says to request permissions only when needed. | DERIVED | BR-28 |
 
 ## 4. Pending Approval Register
+
+### 4.0 Decided items
+
+| ID | Decision | Date | Approver | Recorded as |
+|---|---|---|---|---|
+| PA-10 | Manager and Admin panels live **inside the single React Native app**. No web dashboard. | 2026-10-30 | Priya | BR-27 |
+| PA-11 | **One app** for all roles, with role-based panels. | 2026-10-30 | Priya | BR-27, BR-28 |
 
 ### 4.1 Listed as undecided in the PDF `[PDF §11]`
 
@@ -89,9 +106,9 @@ Labels used in this document:
 
 | ID | Question |
 |---|---|
-| **PA-10** | Do the Store Manager and Super Admin dashboards run as a **web app**, inside the **React Native app**, or both? The PDF lists only React Native. *Recommendation:* web dashboards built with React + TypeScript, sharing types with the mobile app. **Blocks Level 2** (repository layout). |
-| **PA-11** | Should there be **one app with role-based screens**, or **separate apps** (Customer app and Delivery Partner app)? *Recommendation:* two Android apps, built from one codebase or monorepo. |
-| **PA-12** | Is **iOS** in scope? The PDF mentions only Android Studio. *Assumption until decided:* Android only. |
+| ~~PA-10~~ | **DECIDED 2026-10-30** → inside the single React Native app, no web dashboard (BR-27). |
+| ~~PA-11~~ | **DECIDED 2026-10-30** → one app with role-based panels (BR-27, BR-28). |
+| **PA-12** | Is **iOS** in scope? The PDF mentions only Android Studio. *Assumption until decided:* Android only. **More important since BR-27:** with no web dashboard, store managers and the owner can use Ramu Kaka only on a device the app supports. |
 | **PA-38** | App name and branding, the Play Store developer account owner, and who creates the Google Stitch designs. |
 | **PA-42** | Supabase hosting region and plan. *Recommendation:* the Mumbai region (`ap-south-1`) for latency and data residency. |
 
@@ -138,7 +155,7 @@ Labels used in this document:
 | ID | Question |
 |---|---|
 | **PA-25** | Ratings: **products only** (as the PDF says), or also delivery partner and order? Can managers hide or reply to reviews? |
-| **PA-26** | **Complaints and feedback:** how does a customer raise a complaint? (The PDF has managers and admin handling complaints but lists no complaint screen in the Customer App.) Is "feedback" (FR-SM-14) separate from reviews and complaints? |
+| **PA-26** | **Complaints and feedback:** how does a customer raise a complaint? (The PDF has managers and admin handling complaints but lists no complaint screen for customers.) Is "feedback" (FR-SM-14) separate from reviews and complaints? |
 | **PA-21** | **Notification channels:** push only, or also SMS or WhatsApp? |
 | **PA-22** | **OTP SMS provider** (for example, MSG91 or Twilio) and the Indian DLT template registration owner. |
 
@@ -151,7 +168,7 @@ Labels used in this document:
 | **PA-34** | Data retention and privacy: compliance with India's DPDP Act 2023, how long to keep attendance photos and voice recordings, and whether raw audio (customer input or AI reply) is stored at all. |
 | **PA-37** | Should **Prashant's existing customer data** be imported? In what format? Is consent needed? |
 | **PA-45** | Customer **account deletion** process (required by Play Store policy). |
-| **PA-47** | Are the Delivery Partner app and the dashboards translated, or English/Hindi only? |
+| **PA-47** | Are the Delivery Partner, Store Manager and Super Admin **panels** translated into all three languages, or English/Hindi only? |
 | **PA-48** | Numeric launch targets for the success metrics (KPIs). |
 
 ### 4.3 Added by the documentation audit (2026-10-30)
@@ -166,9 +183,17 @@ Labels used in this document:
 | **PA-54** | **Store vs warehouse:** is every store also its own warehouse (the PDF uses "Store / Warehouse Manager" and "photo from the warehouse"), or can they be separate places? | Schema `stores`, attendance |
 | **PA-55** | **KPI and performance definitions:** definitions of "active customer", "fulfilment time", "productivity", delivery partner performance (FR-DP-12, FR-SM-15) and **manager** performance (FR-SA-09). | SRS §3.8, analytics, Level 10 |
 | **PA-56** | **Delivery request contents:** what a delivery partner sees *before* accepting (for example, area or distance, items, order value), given that customer contact details are shown only after assignment. | FR-DP-04/07, DP-S04 |
-| **PA-57** | **AI cost reporting currency:** Gemini bills in USD. Should dashboards report in ₹, and if so, which exchange rate (fixed or periodic)? | FR-SA-11, KPI-09, `ai_usage_logs` |
+| **PA-57** | **AI cost reporting currency:** Gemini bills in USD. Should the Super Admin panel report in ₹, and if so, which exchange rate (fixed or periodic)? | FR-SA-11, KPI-09, `ai_usage_logs` |
 | **PA-58** | **Manager wallet visibility:** can a store manager see customer wallet balances or transactions (for example, cashback from their store campaigns)? | Access matrix, FR-SM-13 |
 | **PA-59** | **Supplier scope:** is supplier inventory (PDF §11, "Supplier inventory and water pricing model") part of Phase 1, and does it need its own records? | Schema, PA-02 |
+
+### 4.4 Added by the single-app decision (2026-10-30)
+
+| ID | Decision needed | Affects |
+|---|---|---|
+| **PA-60** | **More than one role per account:** can one phone number hold more than one role (for example, a store manager who also orders water at home)? If yes, the app needs a panel switcher. *Assumption until decided:* one role per account. | BR-28, `user_roles`, app shell |
+| **PA-61** | **Staff phone security:** should the Store Manager and Super Admin panels require an app lock (PIN or fingerprint) and/or log out automatically after a period of inactivity? | NFR-SEC-15, lost or shared phones |
+| **PA-62** | **Report export:** with no web dashboard, do Super Admin or Store Manager finance reports need to be exported as a file (for example, CSV or PDF) for accounting? | FR-SA-08, FR-SM-11/12 |
 
 ## 5. Rule Change Process
 

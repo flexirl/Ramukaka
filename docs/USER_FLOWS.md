@@ -3,11 +3,41 @@
 | Field | Value |
 |---|---|
 | Status | **DRAFT** |
-| Last updated | 2026-10-30 (audit corrections) |
+| Last updated | 2026-10-30 (single mobile app decision) |
 
 > Flows are built from the confirmed requirements. Branches that depend on an open decision are marked **PA-xx**. Diagrams use Mermaid. Status values are lowercase snake_case. "Delivery request" means a dispatch to a DP; "offer" means a promotional offer.
 
 ---
+
+## UF-00 Login and Role-Based Routing (FR-APP-01…08, BR-27, BR-28)
+
+Everyone uses the **same Ramu Kaka app**. The app decides which panel to open from the role stored on the backend.
+
+```mermaid
+flowchart TD
+  A[Open Ramu Kaka app] --> B{Logged in already?}
+  B -- No --> C[Language picker on first launch]
+  C --> D[Phone number + OTP]
+  D --> E[App asks backend: role, status, store]
+  B -- Yes --> E
+  E --> F{Account status}
+  F -- suspended --> S1[Account suspended screen]
+  F -- staff not approved --> S2[Waiting for approval screen]
+  F -- active --> G{Role from backend}
+  G -- customer --> P1[Customer panel]
+  G -- delivery_partner --> P2[Delivery Partner panel]
+  G -- store_manager --> P3[Store Manager panel - own store only]
+  G -- super_admin --> P4[Super Admin panel]
+  G -- none / unknown --> S3[No access screen]
+```
+
+Rules:
+- A new phone number that signs up by itself becomes a **customer** (DR-12).
+- Staff phone numbers get their role and store from the Super Admin **before** first login (UF-10).
+- Users can never choose or change their own role.
+- The app re-checks access on start, on return from the background, when a notification opens a screen, and when the backend refuses a request. If the role or status changed, it re-routes or logs out (FR-APP-06).
+- Hiding other panels is for convenience only. The backend refuses every action the role is not allowed to do (NFR-SEC-14).
+- More than one role per account is **PA-60**.
 
 ## UF-01 Customer Onboarding (FR-CU-01/02/03)
 
@@ -164,7 +194,7 @@ At **delivered**, the DP enters the cash collected. If it differs from the order
 
 1. Categories → **Add category** (name in each language, icon) → Save. (Server function; permission **PA-32**.)
 2. Products → **Add product** → category, names and descriptions, unit, price (**PA-02**), stock, images → Save.
-3. **Deactivate** instead of delete. Deactivated items disappear from the customer app and the AI catalog.
+3. **Deactivate** instead of delete. Deactivated items disappear from the Customer panel and the AI catalog.
 4. Stock adjustment: enter a new quantity or a +/- change with a reason. Every change creates a `stock_movements` entry (DR-11).
 
 ## UF-10 Super Admin: Store, Manager & Delivery Partner Setup (FR-SA-01/03/04/12)
@@ -173,7 +203,7 @@ At **delivered**, the DP enters the cash collected. If it differs from the order
 2. Configure store settings and limits (delivery charges **PA-19**, surge cap **PA-05**, request timeout **PA-03**).
 3. Managers → **Create manager** (phone) → assign to store → set permissions (**PA-32**) → approve.
 4. Delivery partners → **Create / approve DP** → assign to store (onboarding and KYC **PA-14**).
-5. The manager logs in by OTP and sees only that store.
+5. The manager or DP installs the same Ramu Kaka app, logs in by OTP, and is taken automatically to their panel. A manager sees only their store.
 6. Suspend a store, manager or DP at any time. Suspension blocks access **immediately**, including any login session that has not expired (DR-08).
 
 ## UF-11 Wallet Credit by Super Admin (FR-SA-07, BR-05, BR-18)
@@ -197,7 +227,7 @@ At **delivered**, the DP enters the cash collected. If it differs from the order
 ## UF-13 Review, Complaint & Feedback (FR-CU-13, FR-SM-14, FR-SA-10)
 
 1. After delivery, the customer is prompted to rate the product(s) (eligibility **PA-25**).
-2. The review appears in the manager dashboard. Moderation and replies are **PA-25**.
+2. The review appears in the Store Manager panel. Moderation and replies are **PA-25**.
 3. Complaints and feedback: intake channel and whether feedback is a separate type are **PA-26** → manager handles → may escalate to SA → may lead to a wallet compensation (UF-11).
 
 ## UF-14 AI Cost Monitoring (FR-SA-11, BR-08)

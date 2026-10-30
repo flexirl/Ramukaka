@@ -3,17 +3,18 @@
 | Field | Value |
 |---|---|
 | Status | **DRAFT – RECOMMENDATION** (the PDF sets no testing requirements; the confirmed rules below set what must be tested) |
-| Last updated | 2026-10-30 (audit corrections) |
+| Last updated | 2026-10-30 (single mobile app decision) |
 
 ---
 
 ## 1. Goals
 
-1. Prove every **confirmed business rule** (BR-01…BR-26) and every derived or approved design rule (DR-01…DR-11) with automated tests.
-2. Protect money and order integrity: wallet, COD, pricing, stock, assignment.
-3. Prove that **the AI cannot place an order without a real customer confirmation**.
-4. Measure AI voice ordering quality in **Hindi, English and Bhojpuri** against the targets set in **PA-07**.
-5. Check the app works on the **low-end Android devices and weak networks** expected in Bihar.
+1. Prove every **business rule** (BR-01…BR-28) and every derived or approved design rule (DR-01…DR-13) with automated tests.
+2. Prove that **no role can reach another role's panel or data**, even though all four panels ship in one app.
+3. Protect money and order integrity: wallet, COD, pricing, stock, assignment.
+4. Prove that **the AI cannot place an order without a real customer confirmation**.
+5. Measure AI voice ordering quality in **Hindi, English and Bhojpuri** against the targets set in **PA-07**.
+6. Check the app works on the **low-end Android devices and weak networks** expected in Bihar.
 
 ## 2. Test Levels
 
@@ -25,8 +26,8 @@
 | Edge Function integration | Functions against a local Supabase instance | Deno test / Vitest + Supabase CLI | Every PR |
 | API-level role tests | Log in as each role with test phone numbers and call APIs (used before any app exists, Level 3) | Integration test suite | Level 3 onward |
 | Component | React Native screens and components | React Native Testing Library | Every PR (Level 4+) |
-| End-to-end (mobile) | Main user flows on an emulator or device | Maestro or Detox | Nightly + before release |
-| End-to-end (dashboards) | Manager/Admin flows | Playwright (if web, **PA-10**) | Nightly + before release |
+| End-to-end (mobile) | Main flows of **all four panels** in the single app, on an emulator or device | Maestro or Detox | Nightly + before release |
+| Release regression | Smoke test of every panel before each app release, because one release ships all panels | Maestro or Detox | Every release |
 | AI evaluation | Voice/text conversation test sets, including confirmation attacks | Custom eval harness against the staging AI function | Each prompt, tool or model change |
 | Performance | Latency and load on critical endpoints | k6 or similar | Before pilot |
 | Security | RLS bypass attempts, suspended-account access, secret scanning, dependency audit | Manual + automated | Each level gate |
@@ -54,6 +55,13 @@
 | DR-08 / NFR-SEC-08 Suspension | Suspend a manager, DP or customer while their login session is still valid → their next API call and RLS read are rejected (`ACCOUNT_SUSPENDED`). |
 | NFR-SEC-09 Protected profile fields | A user updating their own `status`, `phone` or roles is rejected. `full_name` and `preferred_language` succeed. |
 | NFR-SEC-10 AI rate limit | Exceeding the per-customer AI limit → `RATE_LIMITED`. No Gemini call is made. |
+| BR-27 / FR-APP-01 One app | One installable app; logging in with each role's test account opens the correct panel. |
+| BR-28 / FR-APP-02/03 Role routing and isolation | Each role is routed to its own panel. Forced navigation (deep link, notification, modified app) to another panel's screen is blocked by the route guard **and** every matching API call returns `FORBIDDEN`. |
+| DR-12 / FR-APP-04 Role assignment | A new phone number registering by itself gets only `customer`. Any attempt by a user to write `user_roles` or their own status is rejected. Only `set-user-role` called by a Super Admin succeeds. |
+| FR-APP-05/06 Access changes | Suspend, un-approve or change the role of a logged-in user → the app shows the right status screen or re-routes on the next check, and old-role API calls fail immediately. |
+| NFR-SEC-14 App not trusted | For every Manager and Admin endpoint, calls made with a customer or DP token return `FORBIDDEN` (automated sweep of all endpoints). |
+| NFR-SEC-15 / FR-APP-08 Staff data on device | After logout, no Manager/Admin data remains in app storage. App lock / auto-logout tests are added once **PA-61** is decided. |
+| NFR-SEC-16 / FR-APP-07 / DR-13 Permissions | A customer is never asked for camera; a DP is never asked for microphone; nobody is asked for background location. The built app does not declare background location. Refusing a permission shows an explanation and an alternative. |
 | NFR-SEC-11 Service-role usage | Each Edge Function rejects callers with the wrong role or scope *before* any privileged query (negative tests per function). |
 | BR-07 / BR-23 One backend, role-based access | Every row of the access matrix (DATABASE_SCHEMA §4) is tested for all four roles against the single shared project. The Super Admin can read every store's data. |
 | BR-14 Manual fallback | After the failure threshold, or on request, the AI session moves to `fallback` and the app opens manual ordering with the understood items pre-filled. |
@@ -108,6 +116,7 @@ Any change to the prompt, tools, confirmation check or model re-runs the whole e
 | Device tier | At least one 2 GB RAM low-end device, one mid-range device |
 | Network | 4G, throttled 3G profile, offline → online transitions |
 | Languages | UI checked in all three languages (text overflow, Devanagari rendering) |
+| Panels | Every device-tier test is run for the Customer and Delivery Partner panels; Manager and Admin panels are also checked on small (5–6 inch) screens |
 
 ## 6. Test Data
 - Seed data and setup scripts for local and staging only: sample stores (Jamui), water products, test DPs, test managers.

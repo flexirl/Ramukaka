@@ -3,7 +3,7 @@
 This file tells Claude (and any AI coding assistant) how to work in this repository.
 
 ## Project in one paragraph
-Ramu Kaka is a voice-first, AI-powered delivery platform for daily essentials. It starts with **water delivery** (bottles and jars) in **Bihar (Jamui first)**, building on Prashant's existing water-supply business. It has four panels: **Customer App**, **Delivery Partner App**, **Store Manager Dashboard**, and **Super Admin Dashboard**. All panels share one Supabase backend.
+Ramu Kaka is a voice-first, AI-powered delivery platform for daily essentials. It starts with **water delivery** (bottles and jars) in **Bihar (Jamui first)**, building on Prashant's existing water-supply business. It is **one React Native mobile app** with four role-based panels: **Customer**, **Delivery Partner**, **Store Manager** and **Super Admin**. There are no separate apps and no web dashboard (BR-27). All panels share one codebase, one login system and one Supabase backend. A plain-language summary is in [docs/PROJECT_OVERVIEW.md](docs/PROJECT_OVERVIEW.md).
 
 ## Current level
 **Level 0 – Project Planning & Documentation.** See [docs/DEVELOPMENT_ROADMAP.md](docs/DEVELOPMENT_ROADMAP.md).
@@ -20,7 +20,7 @@ Until the user approves the next level:
 
 ## Rules for working on this project
 1. **Never invent business requirements.** If something is not in the PRD and not approved, mark it `PENDING APPROVAL` and add or reference a `PA-xx` item.
-2. **Keep labels separate:** `CONFIRMED` (from PDF), `DERIVED` (logical consequence), `RECOMMENDATION` (proposal), `PENDING APPROVAL`.
+2. **Keep labels separate:** `CONFIRMED` (from PDF), `APPROVED DECISION` (decided by the project owner, with date and approver), `DERIVED` (logical consequence), `RECOMMENDATION` (proposal), `PENDING APPROVAL`.
 3. **Work level by level.** Stop at the end of each level and wait for explicit user approval.
 4. When a PA item is decided, update `BUSINESS_RULES.md` first (record date and approver). Then update every dependent document in the same change.
 5. Reference requirement IDs (`FR-CU-xx`, `FR-DP-xx`, `FR-SM-xx`, `FR-SA-xx`, `FR-AI-xx`, `FR-WP-xx`, `BR-xx`, `DR-xx`, `NFR-xx`, `PA-xx`) in commits, PRs and code comments where useful.
@@ -29,6 +29,10 @@ Until the user approves the next level:
 
 ## Non-negotiable technical rules (from PRD §7 and §9)
 - Confirmed stack: React Native + TypeScript (Android via Android Studio), Supabase Auth (OTP for **all** roles), Supabase PostgreSQL, Supabase server-side functions, Gemini API, GitHub, Google Stitch for design.
+- **One React Native app** with four panels (BR-27). Never create a separate app or a web dashboard.
+- After login, the app routes the user to a panel based on the **backend-assigned role** (BR-28). Users can never change their own role; self-registration creates a customer only (DR-12). Each panel has its own navigation and screens, and panels never import each other's screens.
+- **The app is never trusted for access control** (NFR-SEC-14). All panels ship in one app, so every backend call must check role, status and store scope.
+- Request device permissions only when the user's role and the feature need them. Never request background location (DR-13).
 - **One shared backend and database** with role-based access control (RLS on every table).
 - **Server-side only:** wallet credits, order assignment, pricing, financial calculations, AI calls, and every catalog, price and stock change (DR-11).
 - **API keys must not be exposed in the mobile app (PDF §7).** Secret keys (Gemini, service-role, SMS) never go in any client, dashboard or git. Only the Supabase anon key ships in clients until **PA-53** decides on restricted public keys (Maps, FCM).
@@ -49,11 +53,12 @@ Until the user approves the next level:
 - Status values are lowercase snake_case (`placed`, `out_for_delivery`, ...).
 - Terminology: **delivery request** = dispatch of an order to delivery partners; **offer** = promotional offer only.
 - TypeScript strict mode everywhere.
-- Proposed monorepo layout: see [docs/SYSTEM_ARCHITECTURE.md §5](docs/SYSTEM_ARCHITECTURE.md#5-proposed-repository-layout-recommendation-not-created-yet).
+- Proposed repository layout (one app, panel folders): see [docs/SYSTEM_ARCHITECTURE.md §6](docs/SYSTEM_ARCHITECTURE.md#6-proposed-repository-layout-recommendation-not-created-yet).
 
 ## Documentation map
 | File | Purpose |
 |---|---|
+| docs/PROJECT_OVERVIEW.md | Plain-language explanation of the whole project |
 | docs/PRD.md | Product requirements (restated from PDF) |
 | docs/SRS.md | Testable functional and non-functional requirements |
 | docs/SYSTEM_ARCHITECTURE.md | Architecture and ADRs |
