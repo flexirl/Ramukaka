@@ -23,24 +23,31 @@ Until the user approves the next level:
 2. **Keep labels separate:** `CONFIRMED` (from PDF), `DERIVED` (logical consequence), `RECOMMENDATION` (proposal), `PENDING APPROVAL`.
 3. **Work level by level.** Stop at the end of each level and wait for explicit user approval.
 4. When a PA item is decided, update `BUSINESS_RULES.md` first (record date and approver). Then update every dependent document in the same change.
-5. Reference requirement IDs (`FR-CU-xx`, `FR-DP-xx`, `FR-SM-xx`, `FR-SA-xx`, `FR-AI-xx`, `FR-WP-xx`, `BR-xx`, `PA-xx`) in commits, PRs and code comments where useful.
+5. Reference requirement IDs (`FR-CU-xx`, `FR-DP-xx`, `FR-SM-xx`, `FR-SA-xx`, `FR-AI-xx`, `FR-WP-xx`, `BR-xx`, `DR-xx`, `NFR-xx`, `PA-xx`) in commits, PRs and code comments where useful.
+6. Record every documentation or rule change in [CHANGELOG.md](CHANGELOG.md).
+7. `APPROVED DESIGN RULE` (e.g. DR-10, DR-11) is only for technical rules the user approved. It never answers a business decision that is still `PENDING APPROVAL`.
 
 ## Non-negotiable technical rules (from PRD §7 and §9)
-- Confirmed stack: React Native + TypeScript (Android via Android Studio), Supabase Auth (OTP), Supabase PostgreSQL, Supabase server-side functions, Gemini API, GitHub, Google Stitch for design.
+- Confirmed stack: React Native + TypeScript (Android via Android Studio), Supabase Auth (OTP for **all** roles), Supabase PostgreSQL, Supabase server-side functions, Gemini API, GitHub, Google Stitch for design.
 - **One shared backend and database** with role-based access control (RLS on every table).
-- **Server-side only:** wallet credits, order assignment, pricing, financial calculations, AI calls.
-- **No API keys or secrets in mobile apps or in git.** Only the Supabase anon key may ship in clients.
+- **Server-side only:** wallet credits, order assignment, pricing, financial calculations, AI calls, and every catalog, price and stock change (DR-11).
+- **API keys must not be exposed in the mobile app (PDF §7).** Secret keys (Gemini, service-role, SMS) never go in any client, dashboard or git. Only the Supabase anon key ships in clients until **PA-53** decides on restricted public keys (Maps, FCM).
+- The Supabase service-role key exists only in Edge Function secrets. Every function authorizes the caller (JWT, role, **active status**, store scope) before any privileged query.
+- Account status is checked on every request, so suspension is immediate.
 - A manager can access **only their assigned store**.
 - An order can **never** be assigned to more than one delivery partner (atomic, first accept wins).
 - Order placement **always** requires explicit customer confirmation (manual or voice).
+- **The AI model can never place an order or set any amount** (DR-09, DR-10). It has read/quote-only tools. The server places the order only after a Confirm tap or a server-side yes/no check of the customer's voice reply, for the session's pending quote.
 - The AI must use **real backend prices, stock and delivery rules**. It must never make them up.
-- The wallet is an **append-only, auditable ledger**.
+- The wallet is an **append-only, auditable ledger**, with writes serialized per wallet.
 - Closed stores and out-of-stock products must block order placement.
-- AI usage and cost must be logged server-side for every call.
+- AI usage and cost must be logged server-side for every Gemini API call.
 
 ## Conventions (proposed; finalized in Level 2)
 - Money is stored as integer **paise**.
 - Language codes: `hi`, `en`, `bho`. No hard-coded user-facing strings.
+- Status values are lowercase snake_case (`placed`, `out_for_delivery`, ...).
+- Terminology: **delivery request** = dispatch of an order to delivery partners; **offer** = promotional offer only.
 - TypeScript strict mode everywhere.
 - Proposed monorepo layout: see [docs/SYSTEM_ARCHITECTURE.md §5](docs/SYSTEM_ARCHITECTURE.md#5-proposed-repository-layout-recommendation-not-created-yet).
 
@@ -57,6 +64,7 @@ Until the user approves the next level:
 | docs/BUSINESS_RULES.md | Rules + Pending Approval register |
 | docs/TESTING_STRATEGY.md | Test approach and business-rule test matrix |
 | docs/DEVELOPMENT_ROADMAP.md | Levels, gates and risks |
+| CHANGELOG.md | History of documentation and rule changes |
 
 ## Git
 - Commit messages should be clear and descriptive, and reference requirement or PA IDs where relevant.

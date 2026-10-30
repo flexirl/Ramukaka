@@ -4,6 +4,7 @@
 |---|---|
 | Backend | Supabase: Auth, PostgREST, Postgres functions (RPC), Edge Functions (CONFIRMED, `[PDF §7]`) |
 | Status | **PROPOSED, not implemented** |
+| Last updated | 2026-10-30 (audit corrections) |
 
 > This document is the *planned* interface between clients and the backend. Names and payloads may change in Level 2 and Level 3. Endpoints that depend on open decisions cite the `PA-xx` item.
 
@@ -13,47 +14,60 @@
 
 | Pattern | Used for | Protection |
 |---|---|---|
-| **Supabase Auth** | OTP sign-in, sessions | Supabase Auth + SMS provider (**PA-22**) |
-| **Direct table reads** (PostgREST via supabase-js) | Catalog, own orders, own wallet history, dashboards lists | RLS |
-| **Edge Functions** `POST /functions/v1/<name>` | AI, quotes, order placement, wallet credits, notifications, any third-party call | JWT + role check inside the function |
-| **Postgres functions (RPC)** `POST /rest/v1/rpc/<name>` | Atomic transactional operations called by Edge Functions or clients | `SECURITY DEFINER` + explicit role checks |
-| **Realtime** | Order status, new offers | RLS-filtered channels |
-| **Storage** | Product images, attendance photos | Bucket policies; signed URLs for private files |
+| **Supabase Auth** | OTP sign-in for all roles (BR-26), sessions | Supabase Auth + SMS provider (**PA-22**) |
+| **Direct table reads** (PostgREST via supabase-js) | Catalog, own orders, own wallet history, notifications, dashboard lists | RLS (role + active status + store scope) |
+| **Direct table writes** | **Only** low-risk own data: own addresses, own device tokens, marking own notifications read | RLS |
+| **Edge Functions** `POST /functions/v1/<name>` | Everything else that writes: AI, quotes, orders, delivery requests, catalog, stock, settings, wallet, accounts, notifications | JWT + explicit role/status/scope check inside the function (NFR-SEC-08, NFR-SEC-11) |
+| **Postgres functions (RPC)** | Atomic transactional operations, called by Edge Functions | `SECURITY DEFINER` + explicit role checks |
+| **Realtime** | Order status, delivery requests | RLS-filtered channels |
+| **Storage** | Product images, attendance and issue photos | Bucket policies; signed URLs for private files |
 
-**Rule (BR-21):** clients never INSERT or UPDATE orders, prices, wallet entries, assignments or COD records directly. These changes go only through the functions listed below.
+**Rule (BR-21, ADR-01, DR-11):** clients never INSERT or UPDATE orders, quotes, prices, stock, categories, products, wallet entries, assignments, COD records, settings, roles or account status directly.
 
 ### Common conventions
 - Auth header: `Authorization: Bearer <supabase JWT>`.
 - Money: integer paise.
+- Status values: lowercase snake_case (`out_for_delivery`).
 - Errors: `{ "error": { "code": "STORE_CLOSED", "message": "...", "message_key": "errors.store_closed" } }`. `message_key` lets clients show localized text.
-- Idempotency: write endpoints accept an `Idempotency-Key` header.
+- Idempotency: write endpoints accept an `Idempotency-Key` header. It is **required** for `place-order` and `wallet-credit`.
+
+### Server-function security checklist (applies to every Edge Function)
+1. Verify the JWT.
+2. Load the caller's roles and **check the account is active** (and, for managers, that the store assignment is active) (NFR-SEC-08).
+3. Check the role and store scope for the requested action (BR-01).
+4. Validate every input. Never trust amounts sent by the client (BR-21).
+5. Only then use the service-role key for privileged queries (NFR-SEC-11).
+6. Write an audit entry for money, price, stock and account actions (NFR-SEC-07).
 
 ### Standard error codes
 
 | Code | Meaning | Rule |
 |---|---|---|
 | `UNAUTHENTICATED` / `FORBIDDEN` | Missing or invalid session, or wrong role | BR-07, BR-23 |
+| `ACCOUNT_SUSPENDED` | Caller's account or store assignment is suspended | DR-08, NFR-SEC-08 |
+| `RATE_LIMITED` | Too many OTP or AI requests | NFR-SEC-05, NFR-SEC-10 |
 | `OUT_OF_SERVICE_AREA` | Address not served | BR-02 |
 | `STORE_CLOSED` | Store not accepting orders | BR-09 |
 | `OUT_OF_STOCK` | Insufficient stock | BR-09 |
 | `QUOTE_EXPIRED` / `QUOTE_CHANGED` | Price or stock changed since the quote | BR-12, BR-21 |
+| `QUOTE_NOT_CONFIRMABLE` | Quote not owned by the caller, already used, or not the session's pending quote | DR-10 |
 | `ORDER_ALREADY_ASSIGNED` | Another DP accepted first | BR-03 |
 | `INVALID_STATUS_TRANSITION` | Status update out of sequence | BR-11 |
 | `NOT_PERMITTED_FOR_STORE` | Manager acting outside their store or permissions | BR-01, BR-20 |
 | `COUPON_INVALID` | Coupon not applicable | **PA-04** |
 | `SURGE_LIMIT_EXCEEDED` | Surge above the admin limit | BR-19 |
 
-## 2. Authentication
+## 2. Authentication (all roles)
 
 | Operation | Method | Notes |
 |---|---|---|
-| Request OTP | `supabase.auth.signInWithOtp({ phone })` | FR-CU-01. Rate limited |
+| Request OTP | `supabase.auth.signInWithOtp({ phone })` | FR-CU-01, BR-26. Rate limited (NFR-SEC-05) |
 | Verify OTP | `supabase.auth.verifyOtp({ phone, token, type: 'sms' })` | Returns a session |
-| Get my profile and roles | `GET profiles?id=eq.me` + `user_roles` | Routes the user to the correct panel |
-| Update profile / language | `PATCH profiles` (own row, safe fields only) | FR-CU-03 |
+| Get my profile and roles | Read own `profiles` row + own `user_roles` rows (RLS) | Routes the user to the correct panel. Suspended → `ACCOUNT_SUSPENDED` |
+| Update my profile | `update-my-profile` (Edge Fn) | Only `full_name` and `preferred_language` (NFR-SEC-09). Used by customers (FR-CU-03) and, within **PA-14** limits, by DPs (FR-DP-01) |
 | Sign out | `supabase.auth.signOut()` | |
 
-DP login method is **PA-15**. Account deletion is **PA-45**.
+Extra DP login checks are **PA-15**. Account deletion is **PA-45**.
 
 ## 3. Customer APIs
 
@@ -62,16 +76,17 @@ DP login method is **PA-15**. Account deletion is **PA-45**.
 | C1 | `addresses` CRUD | Table (RLS: own) | FR-CU-02 | Add, edit, list and delete own addresses |
 | C2 | `check-serviceability` | Edge Fn | BR-02 | Input: address_id or lat/lng. Output: serving store, or `OUT_OF_SERVICE_AREA` |
 | C3 | `categories`, `products` read | Table (RLS: active) | FR-CU-07 | Catalog for the serving store |
-| C4 | `quote-order` | Edge Fn | FR-CU-06, BR-12 | Server-side price breakdown (see below) |
-| C5 | `place-order` | Edge Fn → RPC | FR-CU-04, BR-04 | Creates the order from a confirmed quote |
+| C4 | `quote-order` | Edge Fn | FR-CU-06, FR-WP-03, BR-12 | Server-side price breakdown, including coupon and cashback eligibility (see below) |
+| C5 | `place-order` | Edge Fn → RPC | FR-CU-04, FR-WP-01, BR-04, DR-10 | Places a COD order for a quote **after the customer's Confirm tap** |
 | C6 | `orders` read + Realtime | Table | FR-CU-09 | Own orders, history and live status |
 | C7 | `cancel-order` | Edge Fn | **PA-16** | Allowed states and actors pending |
-| C8 | `wallet` / `wallet_transactions` read | Table (own) | FR-CU-11 | Balance and history |
-| C9 | `list-offers` | Edge Fn / view | FR-CU-12 | Coupons and offers the customer is eligible for |
-| C10 | `reviews` create | Edge Fn | FR-CU-13 | Eligibility **PA-25** |
-| C11 | `complaints` create | Edge Fn | **PA-26** | Intake channel pending |
-| C12 | `get-delivery-contact` | Edge Fn | FR-CU-14 | Returns DP phone, or a masked number (**PA-24**) |
-| C13 | `register-device` | Table | FR-CU-10 | Push token |
+| C8 | `wallets` / `wallet_transactions` read | Table (own) | FR-CU-11, FR-WP-02 | Balance and history |
+| C9 | `list-offers` | Edge Fn / view | FR-CU-12 | Promotional offers and coupons the customer is eligible for |
+| C10 | `create-review` | Edge Fn | FR-CU-13 | Eligibility **PA-25** |
+| C11 | `create-complaint` | Edge Fn | FR-SM-14 | Intake channel and feedback type **PA-26** |
+| C12 | `get-delivery-contact` | Edge Fn | FR-CU-14 | Contact details for the assigned DP. Method and masking **PA-24** |
+| C13 | `device_tokens` upsert | Table (own) | FR-CU-10 | Push token |
+| C14 | `notifications` read + mark read | Table (own) | FR-CU-10 | In-app notification inbox (CU-S19) |
 
 ### C4 `quote-order` example
 Request:
@@ -104,17 +119,25 @@ Response:
 > Amounts above are placeholders. No prices are defined yet (**PA-02**). `use_wallet` depends on **PA-27**.
 
 ### C5 `place-order` example
-Request: `{ "quote_id": "uuid" }` with header `Idempotency-Key: <uuid>`.
-Response: `{ "order_id": "uuid", "order_number": "RK-000123", "status": "placed" }`.
-Server re-checks store open state, stock, service area and quote expiry (BR-09, ADR-03). Then it reserves stock and starts dispatch.
+Request: `{ "quote_id": "uuid" }` with the required header `Idempotency-Key: <uuid>`.
+
+Response: `{ "order_id": "uuid", "order_number": "RK-000123", "status": "placed", "confirmation_method": "tap" }`.
+
+Server checks:
+- The quote belongs to the caller, is `active` and unexpired.
+- If the quote came from a voice session, it must be that session's `pending_quote_id` (DR-10).
+- Store is still open, stock is still available, address is still in the service area (BR-09, ADR-03).
+
+It then creates the order in one transaction. Stock is handled per **PA-49**. Delivery requests are sent to eligible DPs (**PA-03**).
 
 ## 4. AI Assistant API
 
 | # | Endpoint | Type | Req ID |
 |---|---|---|---|
 | A1 | `ai-session-start` | Edge Fn | FR-AI-03 |
-| A2 | `ai-turn` | Edge Fn | FR-AI-01…08 |
+| A2 | `ai-turn` | Edge Fn | FR-CU-05, FR-AI-01…08 |
 | A3 | `ai-session-end` | Edge Fn | FR-AI-07 |
+| — | Confirm by tap | Uses `place-order` (C5) with the session's pending quote | FR-AI-05, DR-10 |
 
 ### A2 `ai-turn`
 Request (multipart or JSON; format depends on **PA-23**):
@@ -129,16 +152,22 @@ Response:
 ```json
 {
   "reply_text": "Ek 20 litre jar, Home address par, ₹__. Order kar doon?",
-  "reply_audio_url": "signed-url-or-null",
+  "reply_audio": { "mime": "audio/mpeg", "data_base64": "..." },
   "state": "awaiting_confirmation",
   "quote": { "quote_id": "uuid", "total_paise": 0 },
   "order": null,
   "fallback_to_manual": false
 }
 ```
-- `state` ∈ `collecting` | `clarifying` | `awaiting_confirmation` | `order_placed` | `fallback`.
-- The model's server-side tools: `search_products`, `get_customer_addresses`, `get_quote` (same as C4), `place_order` (same as C5; allowed only after confirmation), `get_order_status`.
-- Every call writes to `ai_usage_logs` (FR-AI-07). Caps are **PA-35**.
+- `state` ∈ `collecting` | `awaiting_confirmation` | `order_placed` | `fallback`. The **server** sets it (ADR-04). The model never sets it.
+- `reply_audio` is returned inline and not stored. Storing audio needs **PA-34** approval.
+- **Model tools:** `search_products`, `get_customer_addresses`, `get_quote` (same logic as C4), `get_order_status`. **There is no order-placing tool** (DR-10).
+- **Voice confirmation:** when the session is `awaiting_confirmation`, the server first runs a separate yes/no check on the customer's turn.
+  - Clear "yes" → the server places the order for `pending_quote_id` (same logic as C5, `confirmation_method = voice`) and returns `state: order_placed` with the order.
+  - "No" → `collecting`.
+  - Unclear → asks again or asks for a tap.
+- **Rate limits and account-status check** run before any Gemini call. If exceeded → `RATE_LIMITED` (NFR-SEC-10). Business caps are **PA-35**.
+- **Usage logging:** one `ai_usage_logs` row per Gemini call (conversation, tool loop, confirmation check), grouped by `turn_id` (FR-AI-07).
 
 ## 5. Delivery Partner APIs
 
@@ -146,14 +175,15 @@ Response:
 |---|---|---|---|---|
 | D1 | `set-duty-status` | Edge Fn | FR-DP-02 | `{ "status": "on_duty" }`. Creates or closes the attendance record |
 | D2 | `upload-attendance-photo` | Storage (private) + Edge Fn | FR-DP-03 | Uploads photo and links it to attendance. Location capture **PA-06** |
-| D3 | `my-offers` read + Realtime | Table (own) | FR-DP-04 | Open offers |
-| D4 | `accept-order` | Edge Fn → RPC (atomic) | FR-DP-05/06, BR-03 | `{ "order_id" }` → `200 { assigned: true }` or `409 ORDER_ALREADY_ASSIGNED` |
-| D5 | `reject-order` | Edge Fn | FR-DP-05 | Records the rejection |
-| D6 | `my-orders` read | Table | FR-DP-07 | Assigned orders with customer details |
+| D3 | `my-delivery-requests` read + Realtime | Restricted view (own) | FR-DP-04 | Pending delivery requests. Visible fields **PA-56** |
+| D4 | `accept-delivery-request` | Edge Fn → RPC (atomic) | FR-DP-05/06, BR-03 | `{ "order_id" }` → `200 { assigned: true }` or `409 ORDER_ALREADY_ASSIGNED` |
+| D5 | `reject-delivery-request` | Edge Fn | FR-DP-05 | Records the rejection |
+| D6 | `my-orders` read | Table/view | FR-DP-07/08 | Assigned orders with customer details. Calling and navigation open on the device (provider **PA-36**) |
 | D7 | `update-order-status` | Edge Fn | FR-DP-09, BR-11 | `{ "order_id", "to_status": "picked_up" }` |
 | D8 | `record-cod` | Edge Fn | FR-DP-10 | `{ "order_id", "collected_paise" }`. Usually sent together with `delivered` |
 | D9 | `report-issue` | Edge Fn | FR-DP-11 | `{ "order_id", "type", "reason", "note", "photo_path?" }` (**PA-17**) |
-| D10 | `my-performance` | View / RPC | FR-DP-12 | Attendance, history, counts |
+| D10 | `my-performance` | View / RPC | FR-DP-12 | Attendance, history, counts. Metrics **PA-55** |
+| D11 | `update-my-profile` | Edge Fn | FR-DP-01 | Shared with §2. Editable fields **PA-14** |
 
 ## 6. Store Manager APIs (all scoped to the manager's store, BR-01)
 
@@ -162,36 +192,35 @@ Response:
 | M1 | `store-orders` read + Realtime | Table/view | FR-SM-01 |
 | M2 | `store-delivery-partners` read | View | FR-SM-02, FR-SM-15 |
 | M3 | `assign-order` | Edge Fn → RPC | FR-SM-02 (reassign **PA-40**) |
-| M4 | `set-store-open` | Edge Fn | FR-SM-04 |
+| M4 | `set-store-open` | Edge Fn | FR-SM-04 (precedence **PA-50**) |
 | M5 | `set-surge` | Edge Fn | FR-SM-05 (limits **PA-05**) |
-| M6 | `categories` CRUD | Table (permission-gated) | FR-SM-06 |
-| M7 | `products` CRUD + image upload | Table + Storage | FR-SM-07/08/09 |
-| M8 | `adjust-stock` | Edge Fn / RPC | FR-SM-10 |
+| M6 | `manage-category` (create / update / deactivate) | Edge Fn | FR-SM-06, BR-06 (permissions **PA-32**) |
+| M7 | `manage-product` (create / update / deactivate, incl. price) + image upload | Edge Fn + Storage | FR-SM-07/08/09, DR-11 (pricing **PA-02**, permissions **PA-32**) |
+| M8 | `adjust-stock` | Edge Fn → RPC | FR-SM-10, DR-11 (writes `stock_movements`) |
 | M9 | `store-reports` | RPC/view | FR-SM-03, FR-SM-11 |
 | M10 | `cod-reconciliation` read + `settle-cod` | View + Edge Fn | FR-SM-12 (**PA-08**) |
-| M11 | `coupons` / `cashback-campaigns` (store scope) | Edge Fn | FR-SM-13 (**PA-32**) |
-| M12 | `reviews`, `complaints` manage | Edge Fn | FR-SM-14 |
+| M11 | `manage-coupon` / `manage-cashback-campaign` (store scope) | Edge Fn | FR-SM-13 (**PA-32**, wallet crediting **PA-52**) |
+| M12 | `store-reviews` / `store-complaints` read + `respond-review` / `update-complaint` | View + Edge Fn | FR-SM-14 (**PA-25**, **PA-26**) |
 | M13 | `verify-attendance` | Edge Fn | FR-SM-15 (**PA-06**) |
-
-Price edits through M7 may need to go through an Edge Function so admin pricing limits can be enforced (**PA-02**, **PA-32**).
 
 ## 7. Super Admin APIs
 
 | # | Endpoint | Type | Req ID |
 |---|---|---|---|
-| S1 | `stores` create/update/suspend | Edge Fn | FR-SA-01/03 |
-| S2 | `managers` create/approve/suspend, assign to store | Edge Fn | FR-SA-03 |
-| S3 | `delivery-partners` manage | Edge Fn | FR-SA-01 (onboarding **PA-14**) |
-| S4 | `customers` list/view/suspend | Table/Edge Fn | FR-SA-01 |
-| S5 | `store-settings` / `platform-settings` update | Edge Fn | FR-SA-04/05/12 |
+| S1 | `manage-store` (create / update / suspend) | Edge Fn | FR-SA-01/03 |
+| S2 | `manage-manager` (create / approve / suspend, assign to store) | Edge Fn | FR-SA-03 |
+| S3 | `manage-delivery-partner` (create / approve / suspend, assign to store) | Edge Fn | FR-SA-01 (onboarding **PA-14**) |
+| S4 | `customers` list/view + `set-customer-status` | View + Edge Fn | FR-SA-01 |
+| S5 | `update-store-settings` / `update-platform-settings` | Edge Fn | FR-SA-04/05/12 (settings list **PA-51**, open/close precedence **PA-50**) |
 | S6 | `set-manager-permissions` | Edge Fn | FR-SA-12 (**PA-32**) |
-| S7 | `coupons` / `cashback-campaigns` (platform) | Edge Fn | FR-SA-06 |
-| S8 | `wallet-credit` | Edge Fn → RPC | FR-SA-07, BR-18 |
-| S9 | `finance-reports` (wallet, COD, promo spend) | RPC/views | FR-SA-08 |
-| S10 | `performance-compare` | RPC/views | FR-SA-02/09 |
-| S11 | `reviews` / `complaints` platform view | Table/views | FR-SA-10 |
-| S12 | `ai-usage-report` | RPC/view | FR-SA-11, KPI-09 |
+| S7 | `manage-coupon` / `manage-cashback-campaign` (platform scope) | Edge Fn | FR-SA-06 |
+| S8 | `wallet-credit` | Edge Fn → RPC | FR-SA-07, FR-WP-04/05, BR-18 |
+| S9 | `finance-reports` (wallet, COD, promo spend) | RPC/views | FR-SA-08, FR-WP-07 |
+| S10 | `performance-compare` (stores, managers, DPs) | RPC/views | FR-SA-02/09 (metrics **PA-55**) |
+| S11 | `reviews` / `complaints` platform view | Views | FR-SA-10 |
+| S12 | `ai-usage-report` | RPC/view | FR-SA-11, KPI-09 (currency **PA-57**) |
 | S13 | `audit-log` read | Table | NFR-SEC-07 |
+| S14 | `partner-attendance` read (any store, with photos via signed URLs) | View | FR-SA-01 |
 
 ### S8 `wallet-credit` example
 ```json
@@ -203,7 +232,10 @@ Price edits through M7 may need to go through an Edge Function so admin pricing 
   "reference": { "type": "complaint", "id": "uuid" }
 }
 ```
-Header `Idempotency-Key` is required. The response includes the ledger entry and the new balance. Approval workflow is **PA-44**.
+- Header `Idempotency-Key` is required.
+- The write is serialized per wallet (NFR-SEC-12).
+- The response includes the ledger entry and the new balance.
+- Approval workflow is **PA-44**. Whether any caller other than the Super Admin may credit is **PA-52**. Until decided, only `super_admin` is allowed.
 
 ## 8. Realtime Channels (proposed)
 
@@ -211,7 +243,7 @@ Header `Idempotency-Key` is required. The response includes the ledger entry and
 |---|---|---|
 | `order:<id>` | Customer, assigned DP, store manager | status changes |
 | `store:<id>:orders` | Store manager | new/updated orders |
-| `dp:<id>:offers` | Delivery partner | new offer, offer withdrawn |
+| `dp:<id>:delivery-requests` | Delivery partner | new delivery request, request withdrawn |
 
 ## 9. Versioning
 Edge Functions are versioned by path suffix if a breaking change is needed (e.g. `quote-order-v2`). Generated TypeScript types are shared through `packages/shared-types` (RECOMMENDATION).

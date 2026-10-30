@@ -14,7 +14,8 @@ The first product is **water delivery** (bottles and jars), starting in **Jamui,
 | Application code | Not started (by design) |
 | Database | Conceptual model only (no tables or migrations) |
 | Mobile apps | Not initialized |
-| Next step | Stakeholder review of `docs/` and decisions on the Pending Approval items |
+| Documentation | Audited and corrected (see [CHANGELOG](CHANGELOG.md)) |
+| Next step | Stakeholder review of `docs/` and decisions on the Pending Approval items (PA-01 to PA-59) |
 
 ## Panels
 
@@ -43,7 +44,7 @@ React Native + TypeScript (Android) · Supabase Auth (OTP) · Supabase PostgreSQ
 | [Testing Strategy](docs/TESTING_STRATEGY.md) | Test levels, business-rule matrix, AI evaluation |
 | [Development Roadmap](docs/DEVELOPMENT_ROADMAP.md) | Levels 0–11 and approval gates |
 
-AI-assisted contributors should read [CLAUDE.md](CLAUDE.md) first.
+AI-assisted contributors should read [CLAUDE.md](CLAUDE.md) first. Changes are tracked in [CHANGELOG.md](CHANGELOG.md).
 
 ## Source
 Original PRD: *Ramu Kaka PRD v1.0*, prepared by Anubhav Kumar (FlexIRL). Status: Initial Draft for Stakeholder Review and Approval.

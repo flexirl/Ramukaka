@@ -4,6 +4,7 @@
 |---|---|
 | Design tool | **Google Stitch** (CONFIRMED, `[PDF §7]`) |
 | Status | **DRAFT – screen inventory and principles. Visual designs not yet produced** |
+| Last updated | 2026-10-30 (audit corrections) |
 
 > Labels: **CONFIRMED** = from the PDF; **RECOMMENDATION** = proposal; **PA-xx** = pending decision.
 > Branding (name usage, logo, colours) is **PA-38**. Colours below are placeholders only.
@@ -46,7 +47,7 @@
 | # | Screen | Requirements |
 |---|---|---|
 | CU-S01 | Splash + language picker (first launch) | FR-CU-03 |
-| CU-S02 | Phone number entry | FR-CU-01 |
+| CU-S02 | Phone number entry (+ name for new users, DERIVED from FR-DP-07) | FR-CU-01 |
 | CU-S03 | OTP verification | FR-CU-01 |
 | CU-S04 | Add first address (map pin + form) | FR-CU-02, BR-02 (**PA-36**) |
 | CU-S05 | "Not serviceable yet" state | BR-02 |
@@ -56,31 +57,31 @@
 | CU-S09 | Product detail + reviews | FR-CU-13 |
 | CU-S10 | Cart / order summary (server quote, coupon, wallet **PA-27**) | FR-CU-06, FR-CU-12 |
 | CU-S11 | Order placed confirmation | BR-04 |
-| CU-S12 | Order tracking (status steps, DP name, call button) | FR-CU-09, FR-CU-14 |
+| CU-S12 | Order tracking (status steps, DP name, contact button; method **PA-24**) | FR-CU-09, FR-CU-14 |
 | CU-S13 | My orders (history) | FR-CU-09 |
 | CU-S14 | Rate and review | FR-CU-13 (**PA-25**) |
 | CU-S15 | Wallet: balance + transactions | FR-CU-11 |
 | CU-S16 | Offers / coupons | FR-CU-12 |
 | CU-S17 | Addresses list/edit | FR-CU-02 |
 | CU-S18 | Profile & settings (language, logout, delete account **PA-45**) | FR-CU-03 |
-| CU-S19 | Notifications list | FR-CU-10 |
-| CU-S20 | Help / complaint | **PA-26** |
+| CU-S19 | Notification inbox (list, mark read) | FR-CU-10 |
+| CU-S20 | Help / complaint / feedback | **PA-26** |
 | CU-S21 | Store closed / out-of-stock states | BR-09 |
 
 ### 3.2 Delivery Partner App (Android)
 
 | # | Screen | Requirements |
 |---|---|---|
-| DP-S01 | Login | FR-DP-01 (**PA-15**) |
+| DP-S01 | Login by phone OTP (BR-26; extra checks **PA-15**) | FR-DP-01 |
 | DP-S02 | Home: large **On Duty / Off Duty** switch, today's summary | FR-DP-02 |
 | DP-S03 | Start-of-work photo capture | FR-DP-03 (**PA-06**) |
-| DP-S04 | New order offer (full-screen card with Accept / Reject, timer **PA-03**) | FR-DP-04/05 |
+| DP-S04 | New **delivery request** (full-screen card with Accept / Reject; contents before acceptance **PA-56**; timer **PA-03**) | FR-DP-04/05 |
 | DP-S05 | "Order already taken" message | BR-03 |
 | DP-S06 | Active delivery: customer, address, items, Call, Navigate, status button | FR-DP-07/08/09 |
 | DP-S07 | Deliver + collect COD (amount due, amount collected) | FR-DP-10 |
 | DP-S08 | Report failed delivery / issue | FR-DP-11 (**PA-17**) |
 | DP-S09 | History & performance; attendance log | FR-DP-12 |
-| DP-S10 | Profile | FR-DP-01 |
+| DP-S10 | Profile (editable fields **PA-14**) | FR-DP-01 |
 
 **Rule:** the status button changes its label at each step ("Picked Up" → "Out for Delivery" → "Delivered"), so the DP only ever sees one next action (BR-11).
 
@@ -89,31 +90,31 @@
 | # | Screen | Requirements |
 |---|---|---|
 | SM-S01 | Login | — |
-| SM-S02 | Overview: open/close toggle, order counters, DPs on duty, alerts (unaccepted orders) | FR-SM-01/04 |
+| SM-S02 | Overview: open/close toggle (precedence **PA-50**), order counters, DPs on duty, alerts (unaccepted orders) | FR-SM-01/04 |
 | SM-S03 | Orders board (Pending / Active / Completed / Failed), assign action | FR-SM-01/02/03 |
 | SM-S04 | Delivery partners: duty status, attendance, photo verification queue | FR-SM-02/15 |
 | SM-S05 | Categories | FR-SM-06 |
-| SM-S06 | Products & stock | FR-SM-07–10 |
+| SM-S06 | Products & stock (saved through server functions, every change audit-logged) | FR-SM-07–10, DR-11 |
 | SM-S07 | Surge / delivery charges | FR-SM-05 |
 | SM-S08 | Reports: revenue, orders, cancellations, failures | FR-SM-03/11 |
 | SM-S09 | COD reconciliation | FR-SM-12 |
 | SM-S10 | Coupons & cashback (if permitted) | FR-SM-13 |
-| SM-S11 | Reviews & complaints | FR-SM-14 |
+| SM-S11 | Reviews, complaints & feedback | FR-SM-14 (**PA-25**, **PA-26**) |
 
 ### 3.4 Super Admin Dashboard (platform **PA-10**)
 
 | # | Screen | Requirements |
 |---|---|---|
-| SA-S01 | Platform overview (orders, revenue, store comparison) | FR-SA-02/09 |
+| SA-S01 | Platform overview (orders, revenue, store/manager/DP comparison; metrics **PA-55**) | FR-SA-02/09 |
 | SA-S02 | Stores (list, create, suspend, open/close, settings & limits) | FR-SA-01/03/04/12 |
 | SA-S03 | Managers (create, approve, suspend, permissions) | FR-SA-03/12 |
-| SA-S04 | Delivery partners | FR-SA-01 |
-| SA-S05 | Customers (+ wallet credit action) | FR-SA-01/07 |
-| SA-S06 | Platform catalog / pricing / operational settings | FR-SA-05 |
+| SA-S04 | Delivery partners (create, approve, suspend, attendance and photos) | FR-SA-01 (**PA-14**) |
+| SA-S05 | Customers (+ wallet credit action; other crediting actors **PA-52**) | FR-SA-01/07 |
+| SA-S06 | Platform catalog / pricing / operational settings (list **PA-51**) | FR-SA-05 |
 | SA-S07 | Offers, coupons, cashback | FR-SA-06 |
 | SA-S08 | Finance: wallet ledger, COD settlements, promo spend | FR-SA-08 |
 | SA-S09 | Reviews & complaints | FR-SA-10 |
-| SA-S10 | AI usage & cost | FR-SA-11 |
+| SA-S10 | AI usage & cost (reporting currency **PA-57**) | FR-SA-11 |
 | SA-S11 | Audit log | NFR-SEC-07 |
 
 ## 4. Voice Assistant UX (RECOMMENDATION)
@@ -125,9 +126,14 @@
 | Thinking | Animated indicator | — |
 | Speaking | Reply text + summary card | TTS reply |
 | Awaiting confirmation | Summary card with big **Haan, order karo** / **Badlo** buttons | "Confirm karein?" |
+| Unclear reply | Summary card stays. "Kya order karun? Haan ya nahi boliye, ya button dabaiye" | Re-asks. **No order placed** |
+| Order placed | Shown **only after the server confirms placement**, with the order number | Confirmation message |
 | Failure (×2) | "Samajh nahi aaya" + **Order manually** button, with items understood so far pre-filled | Spoken apology |
 
-The customer can confirm by voice **or** by tapping the button. Both go through the same confirm step on the backend.
+The customer can confirm by voice **or** by tapping the button (DR-10):
+- A **tap** confirms the exact quote on the card.
+- A **spoken "yes"** is checked by a separate server-side yes/no check. Unclear replies never place an order.
+- The AI model itself cannot place orders, so the UI never shows "order placed" based on the AI's words alone.
 
 > Hindi and Bhojpuri phrases above are illustrative placeholders. Final copy should be reviewed by native speakers (**PA-07**).
 

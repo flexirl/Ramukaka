@@ -7,6 +7,7 @@
 | This document | Structured restatement of the source PRD with traceability IDs |
 | Level | Level 0 – Project Planning and Documentation |
 | Status | **DRAFT – awaiting stakeholder approval** |
+| Last updated | 2026-10-30 (audit corrections; no PDF requirement changed) |
 
 > **How to read this document**
 > - **CONFIRMED** = stated in the source PDF. The section reference is shown as `[PDF §n]`.
@@ -62,7 +63,11 @@ PENDING APPROVAL:
 | 3. Store / Warehouse Manager Dashboard | Store manager (one store each) | Orders, inventory, offers, store control |
 | 4. Super Admin / Owner Dashboard | Owner / platform admin | Platform-wide control and finance |
 
-The PDF does not say which platform the dashboards run on (web or mobile) → **PA-10**.
+Open questions about the panels:
+- The PDF does not say which platform the dashboards run on (web or mobile) → **PA-10**.
+- The PDF says "Store / Warehouse Manager" and "work-start photo from the warehouse". Whether a store and a warehouse are always the same place → **PA-54**.
+- Authentication is "Supabase Auth with OTP verification" `[PDF §7]`, with no per-panel exception, so OTP applies to all four roles (BR-26).
+- "Offers" in this PRD means promotional offers. Dispatching an order to delivery partners is called a **delivery request** in the technical documents.
 
 ### 4.1 Panel 1 — Customer App `[PDF §4, Panel 1]`
 
@@ -168,7 +173,7 @@ The AI assistant is the **core differentiating feature**.
 | FR-WP-02 | Customer wallets hold cashback, promotional credits and approved refunds. |
 | FR-WP-03 | Cashback and coupon eligibility follow predefined business rules (rules are **PENDING**, PA-04). |
 | FR-WP-04 | Every wallet credit and debit has a secure transaction record. |
-| FR-WP-05 | The Super Admin can issue approved wallet credits. |
+| FR-WP-05 | The Super Admin can issue approved wallet credits. (Whether others may also credit wallets is **PA-52**.) |
 | FR-WP-06 | Online payments (Razorpay or another gateway) **may** be introduced later (Phase 2, "if required"). |
 | FR-WP-07 | The dashboard tracks COD collections, outstanding settlements and promotional expenses. |
 
@@ -186,7 +191,7 @@ The AI assistant is the **core differentiating feature**.
 | Android build and deployment | Android Studio |
 | Version control | GitHub |
 
-**Architecture requirement (CONFIRMED):** all panels share one backend and one database, with role-based access control. Wallet credits, order assignment, pricing and financial calculations must be validated **server-side**. API keys must **never** be shipped in the mobile application.
+**Architecture requirement (CONFIRMED):** all panels share one backend and one database, with role-based access control. Wallet credits, order assignment, pricing and financial calculations must be validated **server-side**. "API keys must not be exposed in the mobile application." Secret keys never ship. Whether platform-restricted public keys (Maps, FCM) are acceptable is **PA-53**.
 
 See [SYSTEM_ARCHITECTURE.md](./SYSTEM_ARCHITECTURE.md) for the proposed design.
 
@@ -218,7 +223,9 @@ These rules are listed with IDs `BR-01` to `BR-09` in [BUSINESS_RULES.md](./BUSI
 | KPI-08 | Cashback and promotional expenditure |
 | KPI-09 | AI cost per customer and per completed order |
 
-The PDF does not set numeric targets for these metrics. **PA-48**: should launch targets be set?
+The PDF does not define these metrics or set numeric targets:
+- **PA-55**: definitions (e.g. "active customer", "fulfilment time", manager performance). Candidate definitions are in [SRS §3.8](./SRS.md#38-kpi-definitions--pending-approval-pa-55-pa-48).
+- **PA-48**: should launch targets be set?
 
 ## 11. Items Requiring Final Approval — from PDF `[PDF §11]`
 
@@ -227,7 +234,7 @@ The PDF itself lists these as undecided:
 | ID | Item |
 |---|---|
 | PA-01 | Initial launch locations and service radius |
-| PA-02 | Supplier inventory and water pricing model |
+| PA-02 | Supplier inventory and water pricing model (supplier scope split out as **PA-59**) |
 | PA-03 | Delivery assignment rules and acceptance timeout |
 | PA-04 | Cashback, wallet refund and coupon policies |
 | PA-05 | Store-level surge pricing permissions |
@@ -236,7 +243,7 @@ The PDF itself lists these as undecided:
 | PA-08 | COD settlement and financial reporting rules |
 | PA-09 | Final MVP scope and launch timeline |
 
-The documentation review found further gaps, `PA-10` onward. They are listed in [BUSINESS_RULES.md §4](./BUSINESS_RULES.md#4-pending-approval-register).
+The documentation review found further gaps, `PA-10` to `PA-59`. They are listed in [BUSINESS_RULES.md §4](./BUSINESS_RULES.md#4-pending-approval-register).
 
 ## 12. Out of Scope for Phase 1 (per PDF phasing)
 
